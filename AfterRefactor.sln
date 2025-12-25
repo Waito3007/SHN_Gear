@@ -1,0 +1,35 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SANBGLog", "SANBGLog", "{24DBC458-6226-B269-DDD6-BCABADA2B9B1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SHNGearBE", "SHNGearBE\SHNGearBE.csproj", "{1222C348-4761-3677-5CDD-D10C61439E6D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundLogService", "SANBGLog\BackgroundLogService.csproj", "{7752159C-7A8B-F0C6-FEDA-327DFC941368}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1222C348-4761-3677-5CDD-D10C61439E6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1222C348-4761-3677-5CDD-D10C61439E6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1222C348-4761-3677-5CDD-D10C61439E6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1222C348-4761-3677-5CDD-D10C61439E6D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7752159C-7A8B-F0C6-FEDA-327DFC941368}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7752159C-7A8B-F0C6-FEDA-327DFC941368}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7752159C-7A8B-F0C6-FEDA-327DFC941368}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7752159C-7A8B-F0C6-FEDA-327DFC941368}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{7752159C-7A8B-F0C6-FEDA-327DFC941368} = {24DBC458-6226-B269-DDD6-BCABADA2B9B1}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0BAD85D7-B75E-4884-8291-AFCA2EFCEE2B}
+	EndGlobalSection
+EndGlobal
