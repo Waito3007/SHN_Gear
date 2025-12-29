@@ -232,12 +232,12 @@ namespace SHNGearBE.Migrations
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("PermisionId")
+                    b.Property<Guid>("PermissionId")
                         .HasColumnType("uuid");
 
-                    b.HasKey("RoleId", "PermisionId");
+                    b.HasKey("RoleId", "PermissionId");
 
-                    b.HasIndex("PermisionId");
+                    b.HasIndex("PermissionId");
 
                     b.ToTable("RolePermissions");
                 });
@@ -287,7 +287,7 @@ namespace SHNGearBE.Migrations
                 {
                     b.HasOne("SHNGearBE.Models.Entities.Account.Permission", "Permission")
                         .WithMany("RolePermisions")
-                        .HasForeignKey("PermisionId")
+                        .HasForeignKey("PermissionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
