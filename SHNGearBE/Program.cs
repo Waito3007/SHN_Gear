@@ -7,7 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddOpenApi();
 
 // Register Database, Repositories, and Services
 builder.Services.AddDatabase(builder.Configuration);
@@ -15,7 +14,6 @@ builder.Services.AddRepositories();
 builder.Services.AddApplicationServices();
 
 //Swagger
-builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Log Service - Typed injection
@@ -32,7 +30,6 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
