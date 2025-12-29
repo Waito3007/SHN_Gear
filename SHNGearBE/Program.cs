@@ -14,6 +14,10 @@ builder.Services.AddDatabase(builder.Configuration);
 builder.Services.AddRepositories();
 builder.Services.AddApplicationServices();
 
+//Swagger
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 // Log Service - Typed injection
 builder.Services.AddTypedLogService(builder.Configuration);
 
@@ -29,10 +33,13 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 
