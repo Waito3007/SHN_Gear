@@ -1,0 +1,39 @@
+name: SHNGear
+
+services:
+
+  db:
+    image: postgres:16-alpine
+    container_name: postgres_container
+    restart: always
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=123456
+      - POSTGRES_DB=SHNGear
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # mount volume để ko mất dữ liệu nếu lỡ sập container
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d SHNGear"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_container
+    restart: always
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=sangvu@gmail.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data: # line 16 là voulumes
+
+

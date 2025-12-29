@@ -37,3 +37,17 @@ C:\SAN\DA\SHNGear\SANBGLog\obj\Debug\net8.0\BackgroundLogService.dll
 C:\SAN\DA\SHNGear\SANBGLog\obj\Debug\net8.0\refint\BackgroundLogService.dll
 C:\SAN\DA\SHNGear\SANBGLog\obj\Debug\net8.0\BackgroundLogService.pdb
 C:\SAN\DA\SHNGear\SANBGLog\obj\Debug\net8.0\ref\BackgroundLogService.dll
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\bin\Debug\net8.0\appsettings.json
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\bin\Debug\net8.0\BackgroundLogService.deps.json
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\bin\Debug\net8.0\BackgroundLogService.dll
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\bin\Debug\net8.0\BackgroundLogService.pdb
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\BackgroundLogService.csproj.AssemblyReference.cache
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\BackgroundLogService.GeneratedMSBuildEditorConfig.editorconfig
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\BackgroundLogService.AssemblyInfoInputs.cache
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\BackgroundLogService.AssemblyInfo.cs
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\BackgroundLogService.csproj.CoreCompileInputs.cache
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\BackgroundLogService.sourcelink.json
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\BackgroundLogService.dll
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\refint\BackgroundLogService.dll
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\BackgroundLogService.pdb
+C:\SAN\DA\SHNGear\AfterRefactor\SANBGLog\obj\Debug\net8.0\ref\BackgroundLogService.dll

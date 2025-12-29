@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute("Background Log Service - Thư viện ghi log tự động vào file text")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1f91051331a2c7edd332ecd37c8e6e983648d46a")]
 [assembly: System.Reflection.AssemblyProductAttribute("BackgroundLogService")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BackgroundLogService")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

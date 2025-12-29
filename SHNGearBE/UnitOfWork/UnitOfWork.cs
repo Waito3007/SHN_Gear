@@ -8,18 +8,18 @@ public class UnitOfWork : IUnitOfWork, IDisposable
     private readonly ApplicationDbContext _context;
     private IDbContextTransaction _contextTransaction;
     private bool _dispose = false;
-    
+
     public UnitOfWork(ApplicationDbContext context)
     {
         _context = context;
     }
-    
+
     public void Dispose()
     {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
-    
+
     protected virtual void Dispose(bool disposing)
     {
         if (!_dispose)
@@ -32,7 +32,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable
         }
         _dispose = true;
     }
-    
+
     public async Task BeginTransactionAsync()
     {
         _contextTransaction = await _context.Database.BeginTransactionAsync();
