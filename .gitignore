@@ -100,5 +100,7 @@ SHNGearBE/bin/
 # Ignore log files specifically in SHNGearBE
 SHNGearBE/*.log
 
+# Ignore env
+.env
 # Ensure obj folders are ignored
 **/obj/
