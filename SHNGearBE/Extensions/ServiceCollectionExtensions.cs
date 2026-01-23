@@ -1,5 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using SHNGearBE.Data;
+using SHNGearBE.Repositorys;
+using SHNGearBE.Repositorys.Interface;
+using SHNGearBE.Services;
+using SHNGearBE.Services.Interfaces;
+using SHNGearBE.UnitOfWork;
 
 namespace SHNGearBE.Extensions;
 
@@ -17,13 +22,14 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddRepositories(this IServiceCollection services)
     {
-
+        services.AddScoped<IUnitOfWork, SHNGearBE.UnitOfWork.UnitOfWork>();
+        services.AddScoped<IProductRepository, ProductRepository>();
         return services;
     }
 
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
-
+        services.AddScoped<IProductService, ProductService>();
         return services;
     }
 
