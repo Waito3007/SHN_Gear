@@ -26,7 +26,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable
         {
             if (disposing)
             {
-                _contextTransaction.Dispose();
+                _contextTransaction?.Dispose();
                 _context.Dispose();
             }
         }

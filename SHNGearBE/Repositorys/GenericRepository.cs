@@ -8,7 +8,7 @@ namespace SHNGearBE.Repositorys;
 
 public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
 {
-    private readonly ApplicationDbContext _context;
+    protected readonly ApplicationDbContext _context;
     protected readonly DbSet<T> _dbSet;
     public GenericRepository(ApplicationDbContext context)
     {
@@ -19,11 +19,8 @@ public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
     public async Task<T?> GetByIdAsync(Guid id)
     {
         var entity = await _dbSet.FindAsync(id);
-        if (entity != null || entity.IsDelete == true)
-        {
-            return null;
-        }
-        return entity;
+        // Return null when not found or soft-deleted
+        return entity == null || entity.IsDelete ? null : entity;
     }
 
     public async Task<T> AddAsync(T Entity)
