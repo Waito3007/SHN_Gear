@@ -2,7 +2,7 @@ using Moq;
 using Xunit;
 using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.Entities.Product;
-using SHNGearBE.Repositorys.Interface;
+using SHNGearBE.Repositorys.Interface.Product;
 using SHNGearBE.Services;
 using SHNGearBE.UnitOfWork;
 
@@ -66,7 +66,7 @@ public class ProductServiceGetTests
             ProductAttributes = new List<ProductAttribute>()
         };
 
-        mockRepo.Setup(r => r.GetByIdWithDetailsAsync(productId, It.IsAny<CancellationToken>()))
+        mockRepo.Setup(r => r.GetByIdWithDetailsCachedAsync(productId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(product);
 
         var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
@@ -94,7 +94,7 @@ public class ProductServiceGetTests
         var mockUoW = new Mock<IUnitOfWork>();
         var mockLog = new Mock<ILogService<ProductService>>();
 
-        mockRepo.Setup(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        mockRepo.Setup(r => r.GetByIdWithDetailsCachedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Product?)null);
 
         var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
@@ -170,7 +170,7 @@ public class ProductServiceGetTests
             ProductAttributes = new List<ProductAttribute>()
         };
 
-        mockRepo.Setup(r => r.GetByIdWithDetailsAsync(productId, It.IsAny<CancellationToken>()))
+        mockRepo.Setup(r => r.GetByIdWithDetailsCachedAsync(productId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(product);
 
         var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);

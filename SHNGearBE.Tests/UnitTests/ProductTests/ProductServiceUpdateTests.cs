@@ -4,7 +4,7 @@ using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.DTOs.Product;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Models.Exceptions;
-using SHNGearBE.Repositorys.Interface;
+using SHNGearBE.Repositorys.Interface.Product;
 using SHNGearBE.Services;
 using SHNGearBE.UnitOfWork;
 

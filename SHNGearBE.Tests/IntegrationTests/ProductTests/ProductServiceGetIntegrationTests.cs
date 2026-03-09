@@ -21,21 +21,19 @@ public class ProductServiceGetIntegrationTests : ProductIntegrationTestBase
         var result = await ProductService.GetByIdAsync(product.Id);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Data.Should().NotBeNull();
+        result.Should().NotBeNull();
 
-        var productData = result.Data!;
-        productData.Id.Should().Be(product.Id);
-        productData.Code.Should().Be("PROD001");
-        productData.Name.Should().Be("Product 1");
-        productData.Slug.Should().Be("product-1");
-        productData.BrandId.Should().Be(brand.Id);
-        productData.CategoryId.Should().Be(category.Id);
-        productData.Variants.Should().HaveCount(1);
+        result!.Id.Should().Be(product.Id);
+        result.Code.Should().Be("PROD001");
+        result.Name.Should().Be("Product 1");
+        result.Slug.Should().Be("product-1");
+        result.BrandName.Should().Be("Nike");
+        result.CategoryName.Should().Be("Clothing");
+        result.Variants.Should().HaveCount(1);
 
-        var variant = productData.Variants.First();
+        var variant = result.Variants.First();
         variant.Sku.Should().Be("SKU001");
-        variant.BasePrice.Should().Be(100m);
+        variant.BasePrice.Should().Be(1000m);
         variant.Currency.Should().Be("USD");
     }
 
@@ -97,20 +95,19 @@ public class ProductServiceGetIntegrationTests : ProductIntegrationTestBase
         var result = await ProductService.GetByIdAsync(product.Id);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Data.Should().NotBeNull();
-        result.Data!.Variants.Should().HaveCount(3);
+        result.Should().NotBeNull();
+        result!.Variants.Should().HaveCount(3);
 
-        var skus = result.Data.Variants.Select(v => v.Sku).ToList();
+        var skus = result.Variants.Select(v => v.Sku).ToList();
         skus.Should().Contain("SHOE-S");
         skus.Should().Contain("SHOE-M");
         skus.Should().Contain("SHOE-L");
 
-        var sizeM = result.Data.Variants.First(v => v.Sku == "SHOE-M");
+        var sizeM = result.Variants.First(v => v.Sku == "SHOE-M");
         sizeM.Quantity.Should().Be(75);
         sizeM.SalePrice.Should().Be(85m);
 
-        var sizeL = result.Data.Variants.First(v => v.Sku == "SHOE-L");
+        var sizeL = result.Variants.First(v => v.Sku == "SHOE-L");
         sizeL.Quantity.Should().Be(60);
         sizeL.SalePrice.Should().Be(90m);
     }
@@ -142,12 +139,11 @@ public class ProductServiceGetIntegrationTests : ProductIntegrationTestBase
         var result = await ProductService.GetPagedAsync(1, 3);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Data.Should().NotBeNull();
-        result.Data!.Should().HaveCount(3);
+        result.Items.Should().NotBeNull();
+        result.Items.Should().HaveCount(3);
 
         // Verify data
-        var productCodes = result.Data.Select(p => p.Code).ToList();
+        var productCodes = result.Items.Select(p => p.Code).ToList();
         productCodes.Should().HaveCount(3);
         productCodes.All(c => c.StartsWith("PROD")).Should().BeTrue();
     }
@@ -179,13 +175,12 @@ public class ProductServiceGetIntegrationTests : ProductIntegrationTestBase
         var result = await ProductService.GetPagedAsync(2, 3);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Data.Should().NotBeNull();
-        result.Data!.Should().HaveCount(3);
+        result.Items.Should().NotBeNull();
+        result.Items.Should().HaveCount(3);
 
         // Page 2 should not contain items from page 1
-        var codesPage1 = (await ProductService.GetPagedAsync(1, 3)).Data!.Select(p => p.Code).ToList();
-        var codesPage2 = result.Data.Select(p => p.Code).ToList();
+        var codesPage1 = (await ProductService.GetPagedAsync(1, 3)).Items.Select(p => p.Code).ToList();
+        var codesPage2 = result.Items.Select(p => p.Code).ToList();
 
         codesPage2.Should().NotIntersectWith(codesPage1);
     }
@@ -228,12 +223,11 @@ public class ProductServiceGetIntegrationTests : ProductIntegrationTestBase
         var result = await ProductService.GetPagedAsync(1, 10);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Data.Should().HaveCount(1);
+        result.Items.Should().HaveCount(1);
 
-        var productItem = result.Data!.First();
+        var productItem = result.Items.First();
         // Should show lowest sale price from all variants (60m from Size M)
-        productItem.Price.Should().Be(60m);
+        productItem.SalePrice.Should().Be(60m);
     }
 
     [Fact]
@@ -246,9 +240,8 @@ public class ProductServiceGetIntegrationTests : ProductIntegrationTestBase
         var result = await ProductService.GetPagedAsync(1, 10);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Data.Should().NotBeNull();
-        result.Data!.Should().BeEmpty();
+        result.Items.Should().NotBeNull();
+        result.Items.Should().BeEmpty();
     }
 
     [Fact]
@@ -272,11 +265,10 @@ public class ProductServiceGetIntegrationTests : ProductIntegrationTestBase
         var result = await ProductService.GetPagedAsync(1, 10);
 
         // Assert
-        result.IsSuccess.Should().BeTrue();
-        result.Data.Should().NotBeNull();
-        result.Data!.Should().HaveCount(2);
+        result.Items.Should().NotBeNull();
+        result.Items.Should().HaveCount(2);
 
-        var codes = result.Data.Select(p => p.Code).ToList();
+        var codes = result.Items.Select(p => p.Code).ToList();
         codes.Should().Contain("TV001");
         codes.Should().Contain("TV003");
         codes.Should().NotContain("TV002"); // Soft deleted

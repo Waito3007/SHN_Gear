@@ -1,6 +1,9 @@
+using BackgroundLogService.Abstractions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using SHNGearBE.Data;
-using SHNGearBE.Repositorys;
+using SHNGearBE.Infrastructure.Redis;
+using SHNGearBE.Repositorys.Product;
 using SHNGearBE.Services;
 using SHNGearBE.UnitOfWork;
 using Testcontainers.PostgreSql;
@@ -41,8 +44,10 @@ public class ProductIntegrationTestBase : IAsyncLifetime
 
         // Initialize repositories and services
         UnitOfWork = new UnitOfWork.UnitOfWork(DbContext);
-        ProductRepository = new ProductRepository(DbContext);
-        ProductService = new ProductService(UnitOfWork, ProductRepository);
+        var mockCacheService = new Mock<ICacheService>();
+        ProductRepository = new ProductRepository(DbContext, mockCacheService.Object);
+        var mockLogService = new Mock<ILogService<ProductService>>();
+        ProductService = new ProductService(ProductRepository, UnitOfWork, mockLogService.Object);
     }
 
     public async Task DisposeAsync()

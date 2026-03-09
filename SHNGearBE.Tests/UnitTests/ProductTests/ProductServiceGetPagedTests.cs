@@ -3,7 +3,7 @@ using Xunit;
 using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Models.Exceptions;
-using SHNGearBE.Repositorys.Interface;
+using SHNGearBE.Repositorys.Interface.Product;
 using SHNGearBE.Services;
 using SHNGearBE.UnitOfWork;
 
@@ -28,6 +28,8 @@ public class ProductServiceGetPagedTests
 
         mockRepo.Setup(r => r.GetPagedAsync(0, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(products);
+        mockRepo.Setup(r => r.CountActiveAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(products.Count);
 
         var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
 
@@ -36,9 +38,14 @@ public class ProductServiceGetPagedTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(3, result.Count);
-        Assert.Equal("PROD-001", result[0].Code);
-        Assert.Equal(100m, result[0].BasePrice);
+        Assert.Equal(3, result.Items.Count);
+        Assert.Equal(3, result.TotalCount);
+        Assert.Equal(1, result.Page);
+        Assert.Equal(10, result.PageSize);
+        Assert.False(result.HasPreviousPage);
+        Assert.False(result.HasNextPage);
+        Assert.Equal("PROD-001", result.Items[0].Code);
+        Assert.Equal(100m, result.Items[0].BasePrice);
     }
 
     [Fact]
@@ -51,6 +58,8 @@ public class ProductServiceGetPagedTests
 
         mockRepo.Setup(r => r.GetPagedAsync(20, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Product>());
+        mockRepo.Setup(r => r.CountActiveAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
 
         var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
 
@@ -116,6 +125,8 @@ public class ProductServiceGetPagedTests
 
         mockRepo.Setup(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Product>());
+        mockRepo.Setup(r => r.CountActiveAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
 
         var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
 
@@ -124,7 +135,12 @@ public class ProductServiceGetPagedTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Empty(result);
+        Assert.Empty(result.Items);
+        Assert.Equal(0, result.TotalCount);
+        Assert.Equal(1, result.Page);
+        Assert.Equal(10, result.PageSize);
+        Assert.False(result.HasPreviousPage);
+        Assert.False(result.HasNextPage);
     }
 
     [Fact]
@@ -177,6 +193,8 @@ public class ProductServiceGetPagedTests
 
         mockRepo.Setup(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Product> { product });
+        mockRepo.Setup(r => r.CountActiveAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
 
         var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
 
@@ -184,9 +202,10 @@ public class ProductServiceGetPagedTests
         var result = await service.GetPagedAsync(1, 10, CancellationToken.None);
 
         // Assert
-        Assert.Single(result);
-        Assert.Equal(100m, result[0].BasePrice);
-        Assert.Equal(90m, result[0].SalePrice);
+        Assert.Single(result.Items);
+        Assert.Equal(1, result.TotalCount);
+        Assert.Equal(100m, result.Items[0].BasePrice);
+        Assert.Equal(90m, result.Items[0].SalePrice);
     }
 
     private static Product CreateTestProduct(string code, string name, decimal price)
