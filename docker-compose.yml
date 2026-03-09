@@ -13,7 +13,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data # mount volume để ko mất dữ liệu nếu lỡ sập container
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-admin} -d ${POSTGRES_DB:-SHNGear}"]
       interval: 5s
@@ -33,5 +33,50 @@ services:
       db:
         condition: service_healthy
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis_container
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: shngear_backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER:-admin};Password=${POSTGRES_PASSWORD:-123456};Database=${POSTGRES_DB:-SHNGear};Pooling=true;Ssl Mode=Disable
+      - Redis__ConnectionString=redis:6379,abortConnect=false,connectTimeout=5000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: shngear_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
 volumes:
-  postgres_data: # line 16 là volumes
+  postgres_data:
+  redis_data:
