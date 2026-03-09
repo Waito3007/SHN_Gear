@@ -1,3 +1,4 @@
+using BackgroundLogService.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SHNGearBE.Models.DTOs.Account;
@@ -11,12 +12,12 @@ namespace SHNGearBE.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
-    private readonly ILogger<AuthController> _logger;
+    private readonly ILogService<AuthController> _logService;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, ILogService<AuthController> logService)
     {
         _authService = authService;
-        _logger = logger;
+        _logService = logService;
     }
 
     [HttpPost("register")]
@@ -34,7 +35,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred during registration");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -54,7 +55,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred during login");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -74,7 +75,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred during token refresh");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -100,7 +101,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred during logout");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -126,7 +127,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred during password change");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }

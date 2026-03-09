@@ -1,6 +1,5 @@
 using Moq;
 using Xunit;
-using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.DTOs.Product;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Models.Exceptions;
@@ -18,7 +17,6 @@ public class ProductServiceCreateTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.CodeOrSlugExistsAsync(It.IsAny<string>(), It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -69,7 +67,7 @@ public class ProductServiceCreateTests
                 ProductAttributes = new List<ProductAttribute>()
             });
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         var request = new CreateProductRequest
         {
@@ -115,12 +113,11 @@ public class ProductServiceCreateTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.CodeOrSlugExistsAsync("DUP-CODE", It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         var request = new CreateProductRequest
         {
@@ -152,12 +149,11 @@ public class ProductServiceCreateTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.CodeOrSlugExistsAsync(It.IsAny<string>(), "duplicate-slug", null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         var request = new CreateProductRequest
         {
@@ -182,7 +178,6 @@ public class ProductServiceCreateTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.CodeOrSlugExistsAsync(It.IsAny<string>(), It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -190,7 +185,7 @@ public class ProductServiceCreateTests
         mockRepo.Setup(r => r.VariantSkuExistsAsync("DUP-SKU", null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         var request = new CreateProductRequest
         {
@@ -216,9 +211,8 @@ public class ProductServiceCreateTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         var request = new CreateProductRequest
         {
@@ -241,9 +235,8 @@ public class ProductServiceCreateTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         var request = new CreateProductRequest
         {
@@ -269,9 +262,8 @@ public class ProductServiceCreateTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         var request = new CreateProductRequest
         {
@@ -297,9 +289,8 @@ public class ProductServiceCreateTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         var request = new CreateProductRequest
         {
@@ -319,3 +310,4 @@ public class ProductServiceCreateTests
         Assert.Equal(ResponseType.StockCannotBeNegative, ex.ResponseType);
     }
 }
+

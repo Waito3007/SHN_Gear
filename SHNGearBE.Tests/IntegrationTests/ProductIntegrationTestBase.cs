@@ -1,4 +1,3 @@
-using BackgroundLogService.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using SHNGearBE.Data;
@@ -44,10 +43,9 @@ public class ProductIntegrationTestBase : IAsyncLifetime
 
         // Initialize repositories and services
         UnitOfWork = new UnitOfWork.UnitOfWork(DbContext);
-        var mockCacheService = new Mock<ICacheService>();
-        ProductRepository = new ProductRepository(DbContext, mockCacheService.Object);
-        var mockLogService = new Mock<ILogService<ProductService>>();
-        ProductService = new ProductService(ProductRepository, UnitOfWork, mockLogService.Object);
+        var cacheService = new TestCacheService();
+        ProductRepository = new ProductRepository(DbContext, cacheService);
+        ProductService = new ProductService(ProductRepository, UnitOfWork, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
     }
 
     public async Task DisposeAsync()
@@ -75,4 +73,48 @@ public class ProductIntegrationTestBase : IAsyncLifetime
 
         await DbContext.SaveChangesAsync();
     }
+
+    private sealed class TestCacheService : ICacheService
+    {
+        public Task<T?> GetAsync<T>(string key)
+        {
+            return Task.FromResult<T?>(default);
+        }
+
+        public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(string key)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> ExistsAsync(string key)
+        {
+            return Task.FromResult(false);
+        }
+
+        public Task RemoveByPatternAsync(string pattern)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<T> GetOrSetAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null)
+        {
+            return factory();
+        }
+
+        public Task<bool> AcquireLockAsync(string key, TimeSpan expiry)
+        {
+            return Task.FromResult(true);
+        }
+
+        public Task ReleaseLockAsync(string key)
+        {
+            return Task.CompletedTask;
+        }
+    }
 }
+

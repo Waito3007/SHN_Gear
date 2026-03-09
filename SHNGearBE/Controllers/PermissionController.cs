@@ -1,3 +1,4 @@
+using BackgroundLogService.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SHNGearBE.Helpers.Attributes;
@@ -13,12 +14,12 @@ namespace SHNGearBE.Controllers;
 public class PermissionController : ControllerBase
 {
     private readonly IPermissionService _permissionService;
-    private readonly ILogger<PermissionController> _logger;
+    private readonly ILogService<PermissionController> _logService;
 
-    public PermissionController(IPermissionService permissionService, ILogger<PermissionController> logger)
+    public PermissionController(IPermissionService permissionService, ILogService<PermissionController> logService)
     {
         _permissionService = permissionService;
-        _logger = logger;
+        _logService = logService;
     }
 
     [HttpGet]
@@ -36,7 +37,7 @@ public class PermissionController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while fetching permissions");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -61,7 +62,7 @@ public class PermissionController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while fetching permission");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -81,7 +82,7 @@ public class PermissionController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while creating permission");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -101,7 +102,7 @@ public class PermissionController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while updating permission");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -126,7 +127,7 @@ public class PermissionController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while deleting permission");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }

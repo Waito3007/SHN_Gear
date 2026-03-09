@@ -1,3 +1,4 @@
+using BackgroundLogService.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SHNGearBE.Helpers.Attributes;
@@ -13,12 +14,12 @@ namespace SHNGearBE.Controllers;
 public class RoleController : ControllerBase
 {
     private readonly IRoleService _roleService;
-    private readonly ILogger<RoleController> _logger;
+    private readonly ILogService<RoleController> _logService;
 
-    public RoleController(IRoleService roleService, ILogger<RoleController> logger)
+    public RoleController(IRoleService roleService, ILogService<RoleController> logService)
     {
         _roleService = roleService;
-        _logger = logger;
+        _logService = logService;
     }
 
     [HttpGet]
@@ -36,7 +37,7 @@ public class RoleController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while fetching roles");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -61,7 +62,7 @@ public class RoleController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while fetching role");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -81,7 +82,7 @@ public class RoleController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while creating role");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -101,7 +102,7 @@ public class RoleController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while updating role");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -126,7 +127,7 @@ public class RoleController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while deleting role");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -146,7 +147,7 @@ public class RoleController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while assigning permission");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -171,7 +172,7 @@ public class RoleController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while removing permission");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }

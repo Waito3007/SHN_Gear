@@ -1,6 +1,5 @@
 using Moq;
 using Xunit;
-using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Repositorys.Interface.Product;
 using SHNGearBE.Services;
@@ -19,7 +18,6 @@ public class ProductServiceGetTests
 
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var product = new Product
         {
@@ -69,7 +67,7 @@ public class ProductServiceGetTests
         mockRepo.Setup(r => r.GetByIdWithDetailsCachedAsync(productId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(product);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.GetByIdAsync(productId, CancellationToken.None);
@@ -92,12 +90,11 @@ public class ProductServiceGetTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.GetByIdWithDetailsCachedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Product?)null);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.GetByIdAsync(Guid.NewGuid(), CancellationToken.None);
@@ -114,7 +111,6 @@ public class ProductServiceGetTests
 
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var product = new Product
         {
@@ -173,7 +169,7 @@ public class ProductServiceGetTests
         mockRepo.Setup(r => r.GetByIdWithDetailsCachedAsync(productId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(product);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.GetByIdAsync(productId, CancellationToken.None);
@@ -186,3 +182,4 @@ public class ProductServiceGetTests
         Assert.Contains(result.Variants, v => v.Sku == "SHIRT-L");
     }
 }
+

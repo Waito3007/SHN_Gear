@@ -1,3 +1,4 @@
+using BackgroundLogService.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SHNGearBE.Helpers.Attributes;
@@ -13,12 +14,12 @@ namespace SHNGearBE.Controllers;
 public class AccountController : ControllerBase
 {
     private readonly IAccountService _accountService;
-    private readonly ILogger<AccountController> _logger;
+    private readonly ILogService<AccountController> _logService;
 
-    public AccountController(IAccountService accountService, ILogger<AccountController> logger)
+    public AccountController(IAccountService accountService, ILogService<AccountController> logService)
     {
         _accountService = accountService;
-        _logger = logger;
+        _logService = logService;
     }
 
     [HttpGet("me")]
@@ -46,7 +47,7 @@ public class AccountController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while fetching profile");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -71,7 +72,7 @@ public class AccountController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while updating profile");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -91,7 +92,7 @@ public class AccountController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while fetching accounts");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -116,7 +117,7 @@ public class AccountController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while fetching account");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -141,7 +142,7 @@ public class AccountController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while deleting account");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -161,7 +162,7 @@ public class AccountController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while assigning role");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
@@ -186,7 +187,7 @@ public class AccountController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while removing role");
+            await _logService.WriteExceptionAsync(ex);
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }

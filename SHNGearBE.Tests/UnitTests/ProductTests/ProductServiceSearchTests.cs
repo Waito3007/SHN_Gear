@@ -1,6 +1,5 @@
 using Moq;
 using Xunit;
-using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.DTOs.Product;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Models.Exceptions;
@@ -18,7 +17,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var products = new List<Product>
         {
@@ -39,7 +37,7 @@ public class ProductServiceSearchTests
         mockRepo.Setup(r => r.CountFilteredAsync("laptop", null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(products.Count);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.SearchAsync(request, CancellationToken.None);
@@ -59,7 +57,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var categoryId = Guid.NewGuid();
         var products = new List<Product>
@@ -81,7 +78,7 @@ public class ProductServiceSearchTests
         mockRepo.Setup(r => r.CountFilteredAsync(null, categoryId, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(products.Count);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.SearchAsync(request, CancellationToken.None);
@@ -98,7 +95,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var brandId = Guid.NewGuid();
         var products = new List<Product>
@@ -120,7 +116,7 @@ public class ProductServiceSearchTests
         mockRepo.Setup(r => r.CountFilteredAsync(null, null, brandId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(products.Count);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.SearchAsync(request, CancellationToken.None);
@@ -137,7 +133,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var categoryId = Guid.NewGuid();
         var brandId = Guid.NewGuid();
@@ -161,7 +156,7 @@ public class ProductServiceSearchTests
         mockRepo.Setup(r => r.CountFilteredAsync("gaming", categoryId, brandId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(products.Count);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.SearchAsync(request, CancellationToken.None);
@@ -179,7 +174,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var request = new ProductFilterRequest
         {
@@ -194,7 +188,7 @@ public class ProductServiceSearchTests
         mockRepo.Setup(r => r.CountFilteredAsync("nonexistent", null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.SearchAsync(request, CancellationToken.None);
@@ -213,7 +207,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var request = new ProductFilterRequest
         {
@@ -221,7 +214,7 @@ public class ProductServiceSearchTests
             PageSize = 10
         };
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() =>
@@ -235,7 +228,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var request = new ProductFilterRequest
         {
@@ -243,7 +235,7 @@ public class ProductServiceSearchTests
             PageSize = -1
         };
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() =>
@@ -257,7 +249,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var request = new ProductFilterRequest
         {
@@ -271,7 +262,7 @@ public class ProductServiceSearchTests
         mockRepo.Setup(r => r.CountFilteredAsync(null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         await service.SearchAsync(request, CancellationToken.None);
@@ -286,7 +277,6 @@ public class ProductServiceSearchTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var products = new List<Product>
         {
@@ -306,7 +296,7 @@ public class ProductServiceSearchTests
         mockRepo.Setup(r => r.CountFilteredAsync(null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(10);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.SearchAsync(request, CancellationToken.None);
@@ -358,3 +348,4 @@ public class ProductServiceSearchTests
         };
     }
 }
+

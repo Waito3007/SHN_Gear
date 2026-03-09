@@ -1,6 +1,5 @@
 using Moq;
 using Xunit;
-using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Models.Exceptions;
 using SHNGearBE.Repositorys.Interface.Product;
@@ -17,7 +16,6 @@ public class ProductServiceGetPagedTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var products = new List<Product>
         {
@@ -31,7 +29,7 @@ public class ProductServiceGetPagedTests
         mockRepo.Setup(r => r.CountActiveAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(products.Count);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.GetPagedAsync(1, 10, CancellationToken.None);
@@ -54,14 +52,13 @@ public class ProductServiceGetPagedTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.GetPagedAsync(20, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Product>());
         mockRepo.Setup(r => r.CountActiveAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         await service.GetPagedAsync(3, 10, CancellationToken.None);
@@ -76,9 +73,8 @@ public class ProductServiceGetPagedTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() => service.GetPagedAsync(0, 10, CancellationToken.None));
@@ -91,9 +87,8 @@ public class ProductServiceGetPagedTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() => service.GetPagedAsync(-1, 10, CancellationToken.None));
@@ -106,9 +101,8 @@ public class ProductServiceGetPagedTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() => service.GetPagedAsync(1, 0, CancellationToken.None));
@@ -121,14 +115,13 @@ public class ProductServiceGetPagedTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.GetPagedAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Product>());
         mockRepo.Setup(r => r.CountActiveAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.GetPagedAsync(1, 10, CancellationToken.None);
@@ -149,7 +142,6 @@ public class ProductServiceGetPagedTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var product = new Product
         {
@@ -196,7 +188,7 @@ public class ProductServiceGetPagedTests
         mockRepo.Setup(r => r.CountActiveAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.GetPagedAsync(1, 10, CancellationToken.None);
@@ -246,3 +238,4 @@ public class ProductServiceGetPagedTests
         };
     }
 }
+

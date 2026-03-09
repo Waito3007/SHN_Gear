@@ -1,6 +1,5 @@
 using Moq;
 using Xunit;
-using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Models.Exceptions;
 using SHNGearBE.Repositorys.Interface.Product;
@@ -17,7 +16,6 @@ public class ProductServiceGetBySlugTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var productId = Guid.NewGuid();
         var product = CreateTestProduct(productId, "PROD-001", "Test Product", "test-product");
@@ -25,7 +23,7 @@ public class ProductServiceGetBySlugTests
         mockRepo.Setup(r => r.GetBySlugCachedAsync("test-product", It.IsAny<CancellationToken>()))
             .ReturnsAsync(product);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.GetBySlugAsync("test-product", CancellationToken.None);
@@ -42,12 +40,11 @@ public class ProductServiceGetBySlugTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.GetBySlugCachedAsync("non-existent", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Product?)null);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         var result = await service.GetBySlugAsync("non-existent", CancellationToken.None);
@@ -62,9 +59,8 @@ public class ProductServiceGetBySlugTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() =>
@@ -78,9 +74,8 @@ public class ProductServiceGetBySlugTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() =>
@@ -94,9 +89,8 @@ public class ProductServiceGetBySlugTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() =>
@@ -142,3 +136,4 @@ public class ProductServiceGetBySlugTests
         };
     }
 }
+

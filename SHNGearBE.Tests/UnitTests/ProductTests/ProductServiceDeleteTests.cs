@@ -1,6 +1,5 @@
 using Moq;
 using Xunit;
-using BackgroundLogService.Abstractions;
 using SHNGearBE.Models.DTOs.Product;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Models.Exceptions;
@@ -20,7 +19,6 @@ public class ProductServiceDeleteTests
 
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var product = new Product
         {
@@ -42,7 +40,7 @@ public class ProductServiceDeleteTests
         mockRepo.Setup(r => r.GetByIdWithDetailsAsync(productId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(product);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         await service.DeleteAsync(productId, CancellationToken.None);
@@ -60,12 +58,11 @@ public class ProductServiceDeleteTests
         // Arrange
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         mockRepo.Setup(r => r.GetByIdWithDetailsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Product?)null);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ProjectException>(() => service.DeleteAsync(Guid.NewGuid(), CancellationToken.None));
@@ -80,7 +77,6 @@ public class ProductServiceDeleteTests
 
         var mockRepo = new Mock<IProductRepository>();
         var mockUoW = new Mock<IUnitOfWork>();
-        var mockLog = new Mock<ILogService<ProductService>>();
 
         var product = new Product
         {
@@ -102,7 +98,7 @@ public class ProductServiceDeleteTests
         mockRepo.Setup(r => r.GetByIdWithDetailsAsync(productId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(product);
 
-        var service = new ProductService(mockRepo.Object, mockUoW.Object, mockLog.Object);
+        var service = new ProductService(mockRepo.Object, mockUoW.Object, Mock.Of<BackgroundLogService.Abstractions.ILogService<ProductService>>());
 
         // Act
         await service.DeleteAsync(productId, CancellationToken.None);
@@ -112,3 +108,4 @@ public class ProductServiceDeleteTests
         mockUoW.Verify(u => u.CommitAsync(), Times.Once);
     }
 }
+
