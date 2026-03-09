@@ -13,4 +13,5 @@ public class Account : BaseEntity
     public AccountDetail AccountDetail { get; set; }
     public virtual ICollection<AccountRole> AccountRoles { get; set; }
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; }
+    public virtual ICollection<Address> Addresses { get; set; } = new List<Address>();
 }

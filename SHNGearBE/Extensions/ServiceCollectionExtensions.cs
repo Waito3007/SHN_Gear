@@ -12,6 +12,8 @@ using SHNGearBE.Repositorys.Interface.Role;
 using SHNGearBE.Repositorys.Interface.Permission;
 using SHNGearBE.Repositorys.Interface.RefreshToken;
 using SHNGearBE.Repositorys.Interface.Product;
+using SHNGearBE.Repositorys.Address;
+using SHNGearBE.Repositorys.Interface.Address;
 using SHNGearBE.Services.Account;
 using SHNGearBE.Services.Role;
 using SHNGearBE.Services.Permission;
@@ -20,6 +22,9 @@ using SHNGearBE.Services.Interfaces.Account;
 using SHNGearBE.Services.Interfaces.Role;
 using SHNGearBE.Services.Interfaces.Permission;
 using SHNGearBE.Services.Interfaces;
+using SHNGearBE.Services.Interfaces.Address;
+using SHNGearBE.Services.Interfaces.Cart;
+using SHNGearBE.Services.Cart;
 using SHNGearBE.UnitOfWork;
 using SHNGearBE.Configurations;
 using SHNGearBE.Infrastructure.Redis;
@@ -72,6 +77,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IAddressRepository, AddressRepository>();
         return services;
     }
 
@@ -90,6 +96,12 @@ public static class ServiceCollectionExtensions
 
         // Product services
         services.AddScoped<IProductService, ProductService>();
+
+        // Address services
+        services.AddScoped<IAddressService, SHNGearBE.Services.Address.AddressService>();
+
+        // Cart services (Redis-based)
+        services.AddScoped<ICartService, CartService>();
 
         return services;
     }
