@@ -89,3 +89,23 @@ public enum ResponseType
 
     #endregion
 }
+
+public static class ResponseTypeExtensions
+{
+    public static int ToHttpStatusCode(this ResponseType type)
+    {
+        var code = (int)type;
+        return code switch
+        {
+            < 1000 => 200,                          // Success
+            >= 1000 and < 2000 => 400,              // Validation -> 400
+            >= 2000 and < 3000 => 404,              // NotFound -> 404
+            4000 => 400,
+            4001 => 401,
+            4003 => 403,
+            4009 => 409,
+            >= 4010 and < 5000 => 409,              // AlreadyExists/Conflict
+            _ => 500                                 // Server errors
+        };
+    }
+}

@@ -21,6 +21,10 @@ public class ProductVariantConfiguration : IEntityTypeConfiguration<ProductVaria
         builder.Property(v => v.Quantity)
             .IsRequired();
 
+        builder.Property(v => v.ReservedStock)
+            .HasDefaultValue(0)
+            .IsRequired();
+
         builder.Property(v => v.SafetyStock)
             .HasDefaultValue(0);
 

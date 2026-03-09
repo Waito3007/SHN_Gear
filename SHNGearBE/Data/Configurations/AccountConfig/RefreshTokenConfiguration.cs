@@ -13,11 +13,11 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.HasKey(x => x.Id);
 
         //Property
-        builder.Property(x => x.Token).IsRequired().HasMaxLength(256);
-        builder.Property(x => x.JwtToken).IsRequired().HasMaxLength(256);
-        builder.Property(x => x.isUsed).IsRequired().HasMaxLength(5);
-        builder.Property(x => x.isRevoked).IsRequired().HasMaxLength(5);
-        builder.Property(x => x.Expires).IsRequired().HasMaxLength(30);
+        builder.Property(x => x.Token).IsRequired().HasMaxLength(512);
+        builder.Property(x => x.JwtToken).IsRequired().HasMaxLength(2048); // JWT tokens can be long
+        builder.Property(x => x.IsUsed).IsRequired();
+        builder.Property(x => x.IsRevoked).IsRequired();
+        builder.Property(x => x.Expires).IsRequired();
 
         // Foreign Key
         builder.HasOne(x => x.Account)

@@ -17,7 +17,7 @@ public class AccountRoleConfiguration : IEntityTypeConfiguration<AccountRole>
         .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.Role)
-        .WithMany(x => x.AccountRole)
+        .WithMany(x => x.AccountRoles)
         .HasForeignKey(x => x.RoleId)
         .OnDelete(DeleteBehavior.Cascade);
     }

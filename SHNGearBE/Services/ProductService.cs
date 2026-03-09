@@ -1,8 +1,9 @@
 using BackgroundLogService.Abstractions;
+using SHNGearBE.Models.DTOs.Common;
 using SHNGearBE.Models.DTOs.Product;
 using SHNGearBE.Models.Entities.Product;
 using SHNGearBE.Models.Exceptions;
-using SHNGearBE.Repositorys.Interface;
+using SHNGearBE.Repositorys.Interface.Product;
 using SHNGearBE.UnitOfWork;
 using SHNGearBE.Services.Interfaces;
 
@@ -45,6 +46,9 @@ public class ProductService : IProductService
         {
             await _productRepository.AddAsync(product);
             await _unitOfWork.CommitAsync();
+
+            // Invalidate cache after successful commit
+            await _productRepository.InvalidateProductCacheAsync(product.Id, product.Slug);
         }
         catch
         {
@@ -93,6 +97,9 @@ public class ProductService : IProductService
         try
         {
             await _unitOfWork.CommitAsync();
+
+            // Invalidate cache after successful commit
+            await _productRepository.InvalidateProductCacheAsync(product.Id, product.Slug);
         }
         catch
         {
@@ -108,21 +115,33 @@ public class ProductService : IProductService
 
     public async Task<ProductDetailResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var product = await _productRepository.GetByIdWithDetailsAsync(id, cancellationToken);
+        var product = await _productRepository.GetByIdWithDetailsCachedAsync(id, cancellationToken);
         return product == null ? null : MapToDetailResponse(product);
     }
 
-    public async Task<IReadOnlyList<ProductListItemResponse>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<ProductDetailResponse?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            throw new ProjectException(ResponseType.InvalidData, "Slug không hợp lệ");
+        }
+
+        var product = await _productRepository.GetBySlugCachedAsync(slug, cancellationToken);
+        return product == null ? null : MapToDetailResponse(product);
+    }
+
+    public async Task<PagedResult<ProductListItemResponse>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         if (page <= 0 || pageSize <= 0)
         {
             throw new ProjectException(ResponseType.InvalidData, "Page và pageSize phải lớn hơn 0");
         }
 
+        var totalCount = await _productRepository.CountActiveAsync(cancellationToken);
         var skip = (page - 1) * pageSize;
         var products = await _productRepository.GetPagedAsync(skip, pageSize, cancellationToken);
 
-        return products.Select(p =>
+        var items = products.Select(p =>
         {
             var price = GetPrimaryPrice(p);
             return new ProductListItemResponse
@@ -138,6 +157,51 @@ public class ProductService : IProductService
                 Currency = price.Currency
             };
         }).ToList();
+
+        return new PagedResult<ProductListItemResponse>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
+    }
+
+    public async Task<PagedResult<ProductListItemResponse>> SearchAsync(ProductFilterRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.Page <= 0 || request.PageSize <= 0)
+        {
+            throw new ProjectException(ResponseType.InvalidData, "Page và pageSize phải lớn hơn 0");
+        }
+
+        var totalCount = await _productRepository.CountFilteredAsync(request.SearchTerm, request.CategoryId, request.BrandId, cancellationToken);
+        var skip = (request.Page - 1) * request.PageSize;
+        var products = await _productRepository.SearchPagedAsync(request.SearchTerm, request.CategoryId, request.BrandId, skip, request.PageSize, cancellationToken);
+
+        var items = products.Select(p =>
+        {
+            var price = GetPrimaryPrice(p);
+            return new ProductListItemResponse
+            {
+                Id = p.Id,
+                Code = p.Code,
+                Name = p.Name,
+                Slug = p.Slug,
+                BrandName = p.Brand?.Name ?? string.Empty,
+                CategoryName = p.Category?.Name ?? string.Empty,
+                BasePrice = price.Base,
+                SalePrice = price.Sale,
+                Currency = price.Currency
+            };
+        }).ToList();
+
+        return new PagedResult<ProductListItemResponse>
+        {
+            Items = items,
+            Page = request.Page,
+            PageSize = request.PageSize,
+            TotalCount = totalCount
+        };
     }
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -148,6 +212,7 @@ public class ProductService : IProductService
             throw new ProjectException(ResponseType.ProductNotFound);
         }
 
+        var slug = product.Slug; // Capture slug before changes
         product.IsDelete = true;
         product.UpdateAt = DateTime.UtcNow;
 
@@ -155,6 +220,9 @@ public class ProductService : IProductService
         try
         {
             await _unitOfWork.CommitAsync();
+
+            // Invalidate cache after successful commit
+            await _productRepository.InvalidateProductCacheAsync(product.Id, slug);
         }
         catch
         {

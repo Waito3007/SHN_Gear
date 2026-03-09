@@ -7,8 +7,8 @@ public class RefreshToken : BaseEntity
     public Guid Id { get; set; }
     public string JwtToken { get; set; }
     public string Token { get; set; }
-    public bool isUsed { get; set; }
-    public bool isRevoked { get; set; }
+    public bool IsUsed { get; set; }
+    public bool IsRevoked { get; set; }
     public DateTime Expires { get; set; }
 
     public Guid AccountId { get; set; }

@@ -43,7 +43,7 @@ public class GlobalExceptionMiddleware
                 response.ErrorCode = projectEx.ResponseType;
                 response.ErrorMessage = projectEx.ResponseType.GetDescription();
 
-                context.Response.StatusCode = GetHttpStatusCode(projectEx.ResponseType);
+                context.Response.StatusCode = projectEx.ResponseType.ToHttpStatusCode();
 
                 if (logService != null && sessionLogService != null)
                 {
@@ -58,6 +58,8 @@ public class GlobalExceptionMiddleware
                 response.ErrorMessage = "Đã xảy ra lỗi không mong muốn";
 
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+
+                Console.WriteLine($"[ERROR] Unhandled Exception: {exception}");
 
                 if (logService != null && sessionLogService != null)
                 {

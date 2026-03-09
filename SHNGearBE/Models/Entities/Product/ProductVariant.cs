@@ -10,7 +10,13 @@ public class ProductVariant : BaseEntity
     public string? Name { get; set; }
 
     public int Quantity { get; set; }
+    public int ReservedStock { get; set; }
     public int SafetyStock { get; set; }
+
+    /// <summary>
+    /// Available quantity for sale = Quantity - ReservedStock - SafetyStock
+    /// </summary>
+    public int AvailableToSell => Quantity - ReservedStock - SafetyStock;
 
     public virtual Product Product { get; set; } = null!;
     public virtual ICollection<ProductVariantPrice> Prices { get; set; } = new List<ProductVariantPrice>();

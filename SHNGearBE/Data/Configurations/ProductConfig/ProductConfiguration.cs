@@ -30,6 +30,12 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.HasIndex(p => p.Code).IsUnique();
         builder.HasIndex(p => p.Slug).IsUnique();
 
+        // Performance indexes for filtering and sorting
+        builder.HasIndex(p => p.CategoryId);
+        builder.HasIndex(p => p.BrandId);
+        builder.HasIndex(p => p.CreateAt);
+        builder.HasIndex(p => new { p.IsDelete, p.CreateAt });
+
         builder.HasOne(p => p.Category)
             .WithMany(c => c.Products)
             .HasForeignKey(p => p.CategoryId)
