@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { productApi } from '../api/product';
+import { cartApi } from '../api/cart';
+import { useAuth } from '../context/AuthContext';
 import type { ProductDetail } from '../types';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ShoppingCart, Plus, Minus } from 'lucide-react';
 
 function formatPrice(price: number, currency = 'VND') {
   const locale = currency === 'VND' ? 'vi-VN' : 'en-US';
@@ -11,9 +13,14 @@ function formatPrice(price: number, currency = 'VND') {
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState(0);
+  const [quantity, setQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [cartMessage, setCartMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -26,6 +33,57 @@ export default function ProductDetailPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [slug]);
+
+  // Reset quantity when variant changes
+  useEffect(() => {
+    setQuantity(1);
+  }, [selectedVariant]);
+
+  const handleAddToCart = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    if (!product) return;
+    const variant = product.variants[selectedVariant];
+
+    if (variant.quantity < quantity) {
+      setCartMessage({ type: 'error', text: 'Not enough stock available' });
+      setTimeout(() => setCartMessage(null), 3000);
+      return;
+    }
+
+    setAddingToCart(true);
+    try {
+      await cartApi.addItem({ productVariantId: variant.id, quantity });
+      setCartMessage({ type: 'success', text: 'Added to cart!' });
+      setTimeout(() => setCartMessage(null), 3000);
+      setQuantity(1);
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      const message = err.response?.data?.message || 'Failed to add to cart';
+      setCartMessage({ type: 'error', text: message });
+      setTimeout(() => setCartMessage(null), 3000);
+    } finally {
+      setAddingToCart(false);
+    }
+  };
+
+  const incrementQuantity = () => {
+    if (product) {
+      const variant = product.variants[selectedVariant];
+      if (quantity < variant.quantity && quantity < 99) {
+        setQuantity(quantity + 1);
+      }
+    }
+  };
+
+  const decrementQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(quantity - 1);
+    }
+  };
 
   if (loading) {
     return (
@@ -182,6 +240,53 @@ export default function ProductDetailPage() {
                           {a.name}: <strong>{a.value}</strong>
                         </span>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Quantity Selector & Add to Cart */}
+                  {variant.quantity > 0 && (
+                    <div className="mt-6 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-medium text-gray-700">Quantity:</span>
+                        <div className="flex items-center border border-gray-300 rounded-lg">
+                          <button
+                            onClick={decrementQuantity}
+                            disabled={quantity <= 1}
+                            className="p-2 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="px-6 py-2 font-semibold min-w-[60px] text-center">
+                            {quantity}
+                          </span>
+                          <button
+                            onClick={incrementQuantity}
+                            disabled={quantity >= variant.quantity || quantity >= 99}
+                            className="p-2 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleAddToCart}
+                        disabled={addingToCart}
+                        className="w-full gradient-btn text-white px-6 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ShoppingCart className="w-5 h-5" />
+                        {addingToCart ? 'Adding...' : 'Add to Cart'}
+                      </button>
+
+                      {cartMessage && (
+                        <div className={`p-3 rounded-lg text-sm font-medium ${
+                          cartMessage.type === 'success' 
+                            ? 'bg-green-50 text-green-700 border border-green-200' 
+                            : 'bg-red-50 text-red-700 border border-red-200'
+                        }`}>
+                          {cartMessage.text}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

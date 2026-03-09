@@ -1,13 +1,34 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ShoppingBag, User, LogOut, Menu, X, Search } from 'lucide-react';
-import { useState } from 'react';
+import { ShoppingBag, User, LogOut, Menu, X, Search, ShoppingCart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { cartApi } from '../api/cart';
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [cartItemCount, setCartItemCount] = useState(0);
+
+  // Fetch cart count when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCartCount();
+    } else {
+      setCartItemCount(0);
+    }
+  }, [isAuthenticated]);
+
+  const fetchCartCount = async () => {
+    try {
+      const res = await cartApi.getCart();
+      const totalItems = res.data.data.items.reduce((sum, item) => sum + item.quantity, 0);
+      setCartItemCount(totalItems);
+    } catch {
+      // Silently fail - cart count is not critical
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +76,14 @@ export default function Header() {
             </Link>
             <Link to="/products" className="text-sm font-medium text-gray-700 hover:text-black transition-colors">
               Products
+            </Link>
+            <Link to="/cart" className="relative text-gray-700 hover:text-black transition-colors">
+              <ShoppingCart className="w-5 h-5" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
+                  {cartItemCount > 99 ? '99+' : cartItemCount}
+                </span>
+              )}
             </Link>
             {isAuthenticated ? (
               <div className="flex items-center gap-4">
@@ -116,6 +145,14 @@ export default function Header() {
               className="block py-2 text-sm font-medium text-gray-700"
             >
               Products
+            </Link>
+            <Link
+              to="/cart"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-2 py-2 text-sm font-medium text-gray-700"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Cart {cartItemCount > 0 && `(${cartItemCount})`}
             </Link>
             {isAuthenticated ? (
               <button

@@ -104,3 +104,33 @@ export interface ProductFilterRequest {
   page?: number;
   pageSize?: number;
 }
+
+export interface CartItemDto {
+  productVariantId: string;
+  productName: string;
+  variantName: string;
+  sku: string;
+  imageUrl?: string;
+  unitPrice: number;
+  currency: string;
+  quantity: number;
+  subTotal: number;
+  availableStock: number;
+}
+
+export interface CartDto {
+  accountId: string;
+  items: CartItemDto[];
+  totalAmount: number;
+  totalItems: number;
+  updatedAt: string;
+}
+
+export interface AddToCartRequest {
+  productVariantId: string;
+  quantity: number;
+}
+
+export interface UpdateCartItemRequest {
+  quantity: number;
+}
