@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #000000;
+  --color-secondary: #ffffff;
+  --color-accent: #333333;
+  --color-muted: #6b7280;
+  --color-surface: #f9fafb;
+  --color-border: #e5e7eb;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.gradient-hero {
+  background: linear-gradient(135deg, #000000 0%, #1a1a2e 50%, #16213e 100%);
+}
+
+.gradient-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f3f4f6 100%);
+}
+
+.gradient-btn {
+  background: linear-gradient(135deg, #000000 0%, #374151 100%);
+}
+
+.gradient-btn:hover {
+  background: linear-gradient(135deg, #1f2937 0%, #4b5563 100%);
+}
