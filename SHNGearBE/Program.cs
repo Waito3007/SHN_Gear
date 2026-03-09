@@ -1,4 +1,13 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Microsoft.EntityFrameworkCore;
+using SHNGearBE.Data;
+using SHNGearBE.Configurations;
 using SHNGearBE.Extensions;
+using SHNGearBE.Helpers.Authorization;
 using SHNGearBE.Middlewares;
 using BackgroundLogService;
 
@@ -8,13 +17,87 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
+// Configure CORS
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
+// Configure JWT Settings
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSettings.SectionName));
+
 // Register Database, Repositories, and Services
 builder.Services.AddDatabase(builder.Configuration);
+builder.Services.AddRedisCache(builder.Configuration);
 builder.Services.AddRepositories();
 builder.Services.AddApplicationServices();
 
-//Swagger
-builder.Services.AddSwaggerGen();
+// Configure Authentication
+var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>();
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.SaveToken = true;
+    options.RequireHttpsMetadata = false;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSettings.Issuer,
+        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+
+// Configure Authorization with Permission-based policies
+builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+
+//Swagger with JWT Support
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "SHNGear API", Version = "v1" });
+
+    // Add JWT Authentication
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // Log Service - Typed injection
 builder.Services.AddTypedLogService(builder.Configuration);
@@ -27,6 +110,13 @@ builder.Services.AddTypedLogService(builder.Configuration);
 
 var app = builder.Build();
 
+// Auto-migrate database
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -36,8 +126,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-app.UseHttpsRedirection();
+app.UseCors();
+
+app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
