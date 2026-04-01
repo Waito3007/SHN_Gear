@@ -48,6 +48,14 @@ services:
       timeout: 5s
       retries: 5
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit_container
+    restart: always
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+
   backend:
     build:
       context: .
@@ -55,16 +63,33 @@ services:
     container_name: shngear_backend
     restart: always
     ports:
-      - "5000:5000"
+      - "${BACKEND_PORT:-5000}:5000"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Username=${POSTGRES_USER:-admin};Password=${POSTGRES_PASSWORD:-123456};Database=${POSTGRES_DB:-SHNGear};Pooling=true;Ssl Mode=Disable
       - Redis__ConnectionString=redis:6379,abortConnect=false,connectTimeout=5000
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - EMAIL_SMTP_HOST=${EMAIL_SMTP_HOST:-}
+      - EMAIL_SMTP_PORT=${EMAIL_SMTP_PORT:-}
+      - EMAIL_SMTP_USE_SSL=${EMAIL_SMTP_USE_SSL:-}
+      - EMAIL_SMTP_USERNAME=${EMAIL_SMTP_USERNAME:-}
+      - EMAIL_SMTP_PASSWORD=${EMAIL_SMTP_PASSWORD:-}
+      - EMAIL_FROM_ADDRESS=${EMAIL_FROM_ADDRESS:-}
+      - EMAIL_FROM_DISPLAY_NAME=${EMAIL_FROM_DISPLAY_NAME:-SHNGear}
+      - EMAIL_TIMEOUT_SECONDS=${EMAIL_TIMEOUT_SECONDS:-30}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-}
+      - SENDER_EMAIL=${SENDER_EMAIL:-}
+      - SENDER_PASSWORD=${SENDER_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   frontend:
     build:
@@ -73,7 +98,7 @@ services:
     container_name: shngear_frontend
     restart: always
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
 
