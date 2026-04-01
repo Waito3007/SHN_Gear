@@ -46,6 +46,7 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSett
 builder.Services.AddDatabase(builder.Configuration);
 builder.Services.AddRedisCache(builder.Configuration);
 builder.Services.AddCloudinarySettings(builder.Configuration);
+builder.Services.AddPayPalSettings(builder.Configuration);
 builder.Services.AddMailService(builder.Configuration);
 builder.Services.AddRepositories();
 builder.Services.AddApplicationServices();

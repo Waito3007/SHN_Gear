@@ -20,6 +20,27 @@ public class CancelOrderRequest
     public string? Reason { get; set; }
 }
 
+public class ApproveRefundRequest
+{
+    public decimal? AmountUsd { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class CreatePayPalOrderResponse
+{
+    public string OrderId { get; set; } = string.Empty;
+    public string CurrencyCode { get; set; } = "USD";
+    public decimal AmountUsd { get; set; }
+    public decimal AppliedVndPerUsdRate { get; set; }
+    public bool UsedFallbackRate { get; set; }
+}
+
+public class PayPalClientConfigResponse
+{
+    public string ClientId { get; set; } = string.Empty;
+    public string CurrencyCode { get; set; } = "USD";
+}
+
 public class OrderResponse
 {
     public Guid Id { get; set; }
