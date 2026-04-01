@@ -83,6 +83,15 @@ services:
       - SMTP_PORT=${SMTP_PORT:-}
       - SENDER_EMAIL=${SENDER_EMAIL:-}
       - SENDER_PASSWORD=${SENDER_PASSWORD:-}
+      - PayPal__BaseUrl=${PAYPAL_BASE_URL:-https://api-m.sandbox.paypal.com}
+      - PayPal__ClientId=${PAYPAL_CLIENT_ID:-}
+      - PayPal__ClientSecret=${PAYPAL_CLIENT_SECRET:-}
+      - PayPal__WebhookId=${PAYPAL_WEBHOOK_ID:-}
+      - PayPal__CurrencyCode=${PAYPAL_CURRENCY_CODE:-USD}
+      - PayPal__ExchangeRateApiBaseUrl=${EXCHANGE_RATE_API_BASE_URL:-https://v6.exchangerate-api.com}
+      - PayPal__ExchangeRateApiKey=${EXCHANGE_RATE_API_KEY:-}
+      - PayPal__FallbackVndPerUsdRate=${PAYPAL_FALLBACK_VND_PER_USD_RATE:-25500}
+      - PayPal__HttpTimeoutSeconds=${PAYPAL_HTTP_TIMEOUT_SECONDS:-20}
     depends_on:
       db:
         condition: service_healthy
