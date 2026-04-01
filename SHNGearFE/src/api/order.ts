@@ -1,15 +1,23 @@
 import api from './client';
 import type {
   ApiResponse,
+  CreatePayPalOrderResponse,
   CreateOrderRequest,
   OrderResponse,
   OrderStatus,
+  PayPalClientConfigResponse,
   PagedResult,
 } from '../types';
 
 export const orderApi = {
   checkout: (request: CreateOrderRequest) =>
     api.post<ApiResponse<OrderResponse>>('/Order/checkout', request),
+
+  getPayPalClientConfig: () =>
+    api.get<ApiResponse<PayPalClientConfigResponse>>('/Order/paypal/client-config'),
+
+  createPayPalOrder: () =>
+    api.post<ApiResponse<CreatePayPalOrderResponse>>('/Order/paypal/create-order', {}),
 
   getMyOrders: (page = 1, pageSize = 10) =>
     api.get<ApiResponse<PagedResult<OrderResponse>>>(`/Order/my-orders?page=${page}&pageSize=${pageSize}`),
@@ -27,4 +35,10 @@ export const orderApi = {
 
   updateOrderStatus: (id: string, status: OrderStatus) =>
     api.patch<ApiResponse<OrderResponse>>(`/Order/admin/${id}/status`, { status }),
+
+  approveRefund: (id: string, amountUsd?: number, reason?: string) =>
+    api.post<ApiResponse<OrderResponse>>(`/Order/admin/${id}/approve-refund`, {
+      amountUsd,
+      reason,
+    }),
 };
