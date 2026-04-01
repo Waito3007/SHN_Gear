@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SHNGearBE.Models.Entities;
 using SHNGearBE.Models.Entities.Account;
+using SHNGearBE.Models.Entities.Order;
 using SHNGearBE.Models.Entities.Product;
 namespace SHNGearBE.Data;
 
@@ -39,6 +40,13 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProductVariantAttribute> ProductVariantAttributes { get; set; }
 
     #endregion Product
+
+    #region Order
+
+    public DbSet<Order> Orders { get; set; }
+    public DbSet<OrderItem> OrderItems { get; set; }
+
+    #endregion Order
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

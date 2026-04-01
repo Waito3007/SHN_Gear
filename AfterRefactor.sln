@@ -1,4 +1,4 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -7,6 +7,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SHNGearBE", "SHNGearBE\SHNGearBE.csproj", "{1222C348-4761-3677-5CDD-D10C61439E6D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackgroundLogService", "SANBGLog\BackgroundLogService.csproj", "{7752159C-7A8B-F0C6-FEDA-327DFC941368}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SHNGearMailService", "SHNGearMailService\SHNGearMailService.csproj", "{9971E04D-E614-4922-96A7-E878F86F92FD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,6 +24,10 @@ Global
 		{7752159C-7A8B-F0C6-FEDA-327DFC941368}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7752159C-7A8B-F0C6-FEDA-327DFC941368}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7752159C-7A8B-F0C6-FEDA-327DFC941368}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9971E04D-E614-4922-96A7-E878F86F92FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9971E04D-E614-4922-96A7-E878F86F92FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9971E04D-E614-4922-96A7-E878F86F92FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9971E04D-E614-4922-96A7-E878F86F92FD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

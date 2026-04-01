@@ -1,4 +1,5 @@
 using BackgroundLogService.Abstractions;
+using Microsoft.EntityFrameworkCore;
 using SHNGearBE.Models.DTOs.Common;
 using SHNGearBE.Models.DTOs.Product;
 using SHNGearBE.Models.Entities.Product;
@@ -66,51 +67,74 @@ public class ProductService : IProductService
     {
         ValidateVariants(request.Variants);
 
-        var product = await _productRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken);
-        if (product == null)
+        for (var attempt = 1; attempt <= 2; attempt++)
         {
-            throw new ProjectException(ResponseType.ProductNotFound);
+            var product = await _productRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken);
+            if (product == null)
+            {
+                throw new ProjectException(ResponseType.ProductNotFound);
+            }
+
+            var exists = await _productRepository.CodeOrSlugExistsAsync(request.Code, request.Slug, request.Id, cancellationToken);
+            if (exists)
+            {
+                throw new ProjectException(ResponseType.AlreadyExists, "Code hoặc slug đã tồn tại");
+            }
+
+            await EnsureVariantSkuUniqueAcrossProductsAsync(request.Variants, product, cancellationToken);
+
+            product.Code = request.Code;
+            product.Name = request.Name;
+            product.Slug = request.Slug;
+            product.Description = request.Description;
+            product.CategoryId = request.CategoryId;
+            product.BrandId = request.BrandId;
+            product.UpdateAt = DateTime.UtcNow;
+
+            await UpdateImagesAsync(product.Id, request.ImageUrls, cancellationToken);
+            await UpdateTagsAsync(product, request.Tags, cancellationToken);
+            UpdateAttributes(product, request.Attributes);
+            UpdateVariants(product, request.Variants);
+
+            await _unitOfWork.BeginTransactionAsync();
+            try
+            {
+                await _unitOfWork.CommitAsync();
+
+                // Invalidate cache after successful commit
+                await _productRepository.InvalidateProductCacheAsync(product.Id, product.Slug);
+
+                await _logService.WriteMessageAsync($"Product updated: {product.Id} - {product.Name}");
+
+                var updated = await _productRepository.GetByIdWithDetailsAsync(product.Id, cancellationToken);
+                return MapToDetailResponse(updated!);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                var conflictInfo = string.Join("; ", ex.Entries.Select(e => $"{e.Entity.GetType().Name}({e.State})"));
+                await _logService.WriteMessageAsync($"CONCURRENCY CONFLICT attempt {attempt}: Entries=[{conflictInfo}] Message={ex.Message}");
+
+                await _unitOfWork.RollbackAsync();
+                _unitOfWork.ClearChangeTracker();
+
+                // Retry once with completely fresh state.
+                if (attempt < 2)
+                {
+                    await _logService.WriteMessageAsync($"Product update concurrency conflict, retrying once. ProductId: {request.Id}. Details: {ex.Message}");
+                    continue;
+                }
+
+                throw new ProjectException(ResponseType.Conflict, "Dữ liệu sản phẩm đã thay đổi, vui lòng tải lại và thử lại");
+            }
+            catch (Exception ex) when (ex is not DbUpdateConcurrencyException)
+            {
+                await _logService.WriteMessageAsync($"UNEXPECTED ERROR attempt {attempt}: {ex.GetType().Name}: {ex.Message}");
+                await _unitOfWork.RollbackAsync();
+                throw;
+            }
         }
 
-        var exists = await _productRepository.CodeOrSlugExistsAsync(request.Code, request.Slug, request.Id, cancellationToken);
-        if (exists)
-        {
-            throw new ProjectException(ResponseType.AlreadyExists, "Code hoặc slug đã tồn tại");
-        }
-
-        await EnsureVariantSkuUniqueAcrossProductsAsync(request.Variants, product, cancellationToken);
-
-        product.Code = request.Code;
-        product.Name = request.Name;
-        product.Slug = request.Slug;
-        product.Description = request.Description;
-        product.CategoryId = request.CategoryId;
-        product.BrandId = request.BrandId;
-        product.UpdateAt = DateTime.UtcNow;
-
-        UpdateImages(product, request.ImageUrls);
-        await UpdateTagsAsync(product, request.Tags, cancellationToken);
-        UpdateAttributes(product, request.Attributes);
-        UpdateVariants(product, request.Variants);
-
-        await _unitOfWork.BeginTransactionAsync();
-        try
-        {
-            await _unitOfWork.CommitAsync();
-
-            // Invalidate cache after successful commit
-            await _productRepository.InvalidateProductCacheAsync(product.Id, product.Slug);
-        }
-        catch
-        {
-            await _unitOfWork.RollbackAsync();
-            throw;
-        }
-
-        await _logService.WriteMessageAsync($"Product updated: {product.Id} - {product.Name}");
-
-        var updated = await _productRepository.GetByIdWithDetailsAsync(product.Id, cancellationToken);
-        return MapToDetailResponse(updated!);
+        throw new ProjectException(ResponseType.Conflict, "Dữ liệu sản phẩm đã thay đổi, vui lòng tải lại và thử lại");
     }
 
     public async Task<ProductDetailResponse?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -406,39 +430,80 @@ public class ProductService : IProductService
             }).ToList();
     }
 
-    private void UpdateImages(Product product, IEnumerable<string>? imageUrls)
+    private async Task UpdateImagesAsync(Guid productId, IEnumerable<string>? imageUrls, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        product.Images.Clear();
 
-        if (imageUrls == null)
+        var normalizedUrls = (imageUrls ?? Enumerable.Empty<string>())
+            .Select((url, index) => new { Url = url?.Trim(), Index = index })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Url))
+            .Select(x => new { Url = x.Url!, x.Index })
+            .ToList();
+
+        // Detach all tracked ProductImage entries for this product to avoid stale Modified state.
+        var trackedImageEntries = _unitOfWork.Context.ChangeTracker
+            .Entries<ProductImage>()
+            .Where(e => e.Entity.ProductId == productId)
+            .ToList();
+
+        foreach (var entry in trackedImageEntries)
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        // Replace image set atomically in this DbContext: delete old rows, then insert requested rows.
+        await _unitOfWork.Context.ProductImages
+            .Where(i => i.ProductId == productId)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        if (!normalizedUrls.Any())
         {
             return;
         }
 
-        var mapped = MapImages(imageUrls, now);
-        foreach (var img in mapped)
+        var newImages = normalizedUrls.Select(item => new ProductImage
         {
-            product.Images.Add(img);
-        }
+            Id = Guid.NewGuid(),
+            ProductId = productId,
+            Url = item.Url,
+            IsPrimary = item.Index == 0,
+            SortOrder = item.Index,
+            CreateAt = now,
+            IsDelete = false
+        }).ToList();
+
+        await _unitOfWork.Context.ProductImages.AddRangeAsync(newImages, cancellationToken);
     }
 
     private async Task UpdateTagsAsync(Product product, IEnumerable<string>? tags, CancellationToken cancellationToken)
     {
-        product.ProductTags.Clear();
+        var normalized = (tags ?? Enumerable.Empty<string>())
+            .Select(t => t.Trim())
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        if (tags == null)
+        // Remove tags that are no longer in the request
+        var toRemove = product.ProductTags
+            .Where(pt => !normalized.Any(n => string.Equals(n, pt.Tag.Name, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+        foreach (var pt in toRemove)
+        {
+            product.ProductTags.Remove(pt);
+        }
+
+        // Determine which tag names are already linked
+        var currentTagNames = product.ProductTags
+            .Select(pt => pt.Tag.Name.ToLowerInvariant())
+            .ToHashSet();
+
+        var newTagNames = normalized.Where(n => !currentTagNames.Contains(n.ToLowerInvariant())).ToList();
+        if (!newTagNames.Any())
         {
             return;
         }
 
-        var normalized = tags.Select(t => t.Trim()).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        if (!normalized.Any())
-        {
-            return;
-        }
-
-        var existingTags = await _productRepository.GetTagsByNamesAsync(normalized, cancellationToken);
+        var existingTags = await _productRepository.GetTagsByNamesAsync(newTagNames, cancellationToken);
         var existingNames = existingTags.Select(t => t.Name.ToLowerInvariant()).ToHashSet();
 
         foreach (var tag in existingTags)
@@ -451,7 +516,7 @@ public class ProductService : IProductService
         }
 
         var now = DateTime.UtcNow;
-        foreach (var tagName in normalized)
+        foreach (var tagName in newTagNames)
         {
             if (existingNames.Contains(tagName.ToLowerInvariant()))
             {
@@ -475,18 +540,29 @@ public class ProductService : IProductService
 
     private void UpdateAttributes(Product product, Dictionary<Guid, string>? attributes)
     {
-        product.ProductAttributes.Clear();
-
         if (attributes == null)
         {
             return;
         }
 
         var now = DateTime.UtcNow;
+        var existingByDefinition = product.ProductAttributes
+            .ToDictionary(x => x.ProductAttributeDefinitionId, x => x);
+
         foreach (var kvp in attributes)
         {
             if (string.IsNullOrWhiteSpace(kvp.Value))
             {
+                continue;
+            }
+
+            if (existingByDefinition.TryGetValue(kvp.Key, out var existing))
+            {
+                if (existing.Value != kvp.Value)
+                {
+                    existing.Value = kvp.Value;
+                    existing.UpdateAt = now;
+                }
                 continue;
             }
 
@@ -506,19 +582,16 @@ public class ProductService : IProductService
         var now = DateTime.UtcNow;
         var variantById = product.Variants.ToDictionary(v => v.Id, v => v);
 
-        // Remove variants not present in request
-        var requestIds = variantRequests.Where(v => v.Id.HasValue).Select(v => v.Id!.Value).ToHashSet();
-        product.Variants = product.Variants.Where(v => requestIds.Contains(v.Id)).ToList();
-
         foreach (var variantRequest in variantRequests)
         {
             if (variantRequest.Id.HasValue && variantById.TryGetValue(variantRequest.Id.Value, out var existing))
             {
-                existing.Sku = variantRequest.Sku;
-                existing.Name = variantRequest.Name;
-                existing.Quantity = variantRequest.Quantity;
-                existing.SafetyStock = variantRequest.SafetyStock;
-                existing.UpdateAt = now;
+                var changed = false;
+                if (existing.Sku != variantRequest.Sku) { existing.Sku = variantRequest.Sku; changed = true; }
+                if (existing.Name != variantRequest.Name) { existing.Name = variantRequest.Name; changed = true; }
+                if (existing.Quantity != variantRequest.Quantity) { existing.Quantity = variantRequest.Quantity; changed = true; }
+                if (existing.SafetyStock != variantRequest.SafetyStock) { existing.SafetyStock = variantRequest.SafetyStock; changed = true; }
+                if (changed) existing.UpdateAt = now;
 
                 UpdateVariantAttributes(existing, variantRequest.Attributes);
                 UpdateVariantPrices(existing, variantRequest.BasePrice, variantRequest.SalePrice, variantRequest.Currency);
@@ -557,18 +630,29 @@ public class ProductService : IProductService
 
     private void UpdateVariantAttributes(ProductVariant variant, Dictionary<Guid, string>? attributes)
     {
-        variant.VariantAttributes.Clear();
-
         if (attributes == null)
         {
             return;
         }
 
         var now = DateTime.UtcNow;
+        var existingByDefinition = variant.VariantAttributes
+            .ToDictionary(x => x.ProductAttributeDefinitionId, x => x);
+
         foreach (var kvp in attributes)
         {
             if (string.IsNullOrWhiteSpace(kvp.Value))
             {
+                continue;
+            }
+
+            if (existingByDefinition.TryGetValue(kvp.Key, out var existing))
+            {
+                if (existing.Value != kvp.Value)
+                {
+                    existing.Value = kvp.Value;
+                    existing.UpdateAt = now;
+                }
                 continue;
             }
 

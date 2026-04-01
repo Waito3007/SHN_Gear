@@ -84,6 +84,44 @@
 - Use `OnDelete(DeleteBehavior.Restrict)` for critical relations to prevent cascade loss; soft-delete instead.
 - Seed minimal lookup data via configuration classes when needed.
 
+## API Integration & Frontend Mapping
+
+**CRITICAL RULE: Always read backend response structure before writing frontend mapping code**
+
+1. **Before writing any FE component that consumes an API endpoint:**
+   - Locate the backend controller method and trace its return type
+   - Check if it returns `Ok(new ApiResponse<T>(...))` wrapper or raw data directly
+   - Use Postman/PowerShell/browser DevTools to inspect actual JSON response from backend
+   - Document the full response structure including all field names, types, and nesting levels
+
+2. **Response Patterns in This Codebase:**
+   - **Admin APIs (Account/Role/Permission):** Return `ApiResponse<T>` wrapper
+     - Access path in FE: `response.data.data` (one data = DTO array, second data = array content)
+     - Example: `const accounts = response.data.data` (array of accounts)
+   - **Product API:** Returns raw `PagedResult<T>` without wrapper (EXCEPTION to admin pattern)
+     - Access path in FE: `response.data` (direct access to PagedResult with items array)
+     - Example: `const items = response.data.items`
+     - Root cause: ProductController does not wrap response in ApiResponse<T>
+
+3. **Type declarations must match backend response exactly:**
+   - If backend wraps: `api.get<ApiResponse<T>>()` 
+   - If backend returns raw: `api.get<PagedResult<T>>()`
+   - Verify by checking the actual HTTP response, not assumptions
+
+4. **Before committing FE code consuming a new or modified endpoint:**
+   - Run backend locally and make test requests to verify response structure
+   - Compare response structure with API type declarations
+   - Test components in browser to catch runtime `n.map is not a function` errors early
+   - Use safe navigation operators (`?.`) while developing until response structure is fully validated
+
+5. **Common mistakes to avoid:**
+   - Assuming all endpoints use the same response wrapper (Product is different)
+   - Reading `.data` once when endpoint wraps in ApiResponse (need `.data.data`)
+   - Reading `.data.data` when endpoint returns raw (should be `.data`)
+   - Not checking if response contains array vs object (affects `.map()` calls)
+   - Duplicating API prefix in endpoint path (axios baseURL is `/api`, don't add `/api` again)
+
 ## Copilot Prompting Tips
 
 - When asking Copilot, remind: "Use request/response DTOs, soft-delete filter, ILogService<T> for logging, use options for config, follow Clean Architecture layers." Keep snippets inside Application/Infra boundaries.
+- When building FE API integration: "First show me the backend response structure, then write the FE consumption code." Always verify response type before writing components.

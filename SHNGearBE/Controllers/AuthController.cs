@@ -131,4 +131,116 @@ public class AuthController : ControllerBase
             return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
         }
     }
+
+    [HttpPost("send-verification-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SendVerificationOtp([FromBody] SendOtpRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _authService.SendEmailVerificationOtpAsync(request.Email, cancellationToken);
+            return Ok(new ApiResponse(new { message = "OTP sent" }, ResponseType.Success));
+        }
+        catch (ProjectException ex)
+        {
+            return StatusCode(ex.ResponseType.ToHttpStatusCode(), new ApiResponse(ex.ResponseType));
+        }
+        catch (Exception ex)
+        {
+            await _logService.WriteExceptionAsync(ex);
+            return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
+        }
+    }
+
+    [HttpPost("verify-email-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyEmailOtp([FromBody] VerifyOtpRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var ok = await _authService.VerifyEmailOtpAsync(request.Email, request.Otp, cancellationToken);
+            if (!ok)
+            {
+                return BadRequest(new ApiResponse(ResponseType.InvalidData));
+            }
+
+            return Ok(new ApiResponse(new { message = "Email verified" }, ResponseType.Success));
+        }
+        catch (ProjectException ex)
+        {
+            return StatusCode(ex.ResponseType.ToHttpStatusCode(), new ApiResponse(ex.ResponseType));
+        }
+        catch (Exception ex)
+        {
+            await _logService.WriteExceptionAsync(ex);
+            return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
+        }
+    }
+
+    [HttpPost("forgot-password/send-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> SendForgotPasswordOtp([FromBody] SendOtpRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _authService.SendForgotPasswordOtpAsync(request.Email, cancellationToken);
+            return Ok(new ApiResponse(new { message = "If the account exists, OTP has been sent" }, ResponseType.Success));
+        }
+        catch (ProjectException ex)
+        {
+            await _logService.WriteMessageAsync($"SendForgotPasswordOtp failed: {ex.Message}");
+            return StatusCode(ex.ResponseType.ToHttpStatusCode(), new ApiResponse(ex.ResponseType));
+        }
+        catch (Exception ex)
+        {
+            await _logService.WriteExceptionAsync(ex);
+            return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
+        }
+    }
+
+    [HttpPost("forgot-password/verify-otp")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyForgotPasswordOtp([FromBody] VerifyOtpRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _authService.VerifyForgotPasswordOtpAsync(request.Email, request.Otp, cancellationToken);
+            return Ok(new ApiResponse(result));
+        }
+        catch (ProjectException ex)
+        {
+            await _logService.WriteMessageAsync($"VerifyForgotPasswordOtp failed: {ex.Message}");
+            return StatusCode(ex.ResponseType.ToHttpStatusCode(), new ApiResponse(ex.ResponseType));
+        }
+        catch (Exception ex)
+        {
+            await _logService.WriteExceptionAsync(ex);
+            return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
+        }
+    }
+
+    [HttpPost("forgot-password/reset")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetForgotPassword([FromBody] ResetForgotPasswordRequestDto request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var ok = await _authService.ResetForgotPasswordAsync(request, cancellationToken);
+            if (!ok)
+            {
+                return BadRequest(new ApiResponse(ResponseType.InvalidData));
+            }
+
+            return Ok(new ApiResponse(new { message = "Password reset successful" }, ResponseType.Success));
+        }
+        catch (ProjectException ex)
+        {
+            return StatusCode(ex.ResponseType.ToHttpStatusCode(), new ApiResponse(ex.ResponseType));
+        }
+        catch (Exception ex)
+        {
+            await _logService.WriteExceptionAsync(ex);
+            return StatusCode(500, new ApiResponse(ResponseType.InternalServerError));
+        }
+    }
 }

@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
 using SHNGearBE.Data;
@@ -10,12 +11,21 @@ using SHNGearBE.Extensions;
 using SHNGearBE.Helpers.Authorization;
 using SHNGearBE.Middlewares;
 using BackgroundLogService;
+using SHNGearMailService.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Configure form data and request body size limits for file uploads
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 15 * 1024 * 1024; // 15MB
+    options.ValueLengthLimit = 15 * 1024 * 1024;
+    options.MultipartHeadersLengthLimit = 2 * 1024 * 1024; // 2MB for headers
+});
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -35,6 +45,8 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtSett
 // Register Database, Repositories, and Services
 builder.Services.AddDatabase(builder.Configuration);
 builder.Services.AddRedisCache(builder.Configuration);
+builder.Services.AddCloudinarySettings(builder.Configuration);
+builder.Services.AddMailService(builder.Configuration);
 builder.Services.AddRepositories();
 builder.Services.AddApplicationServices();
 

@@ -41,7 +41,7 @@ public class GlobalExceptionMiddleware
             case ProjectException projectEx:
                 response.Success = false;
                 response.ErrorCode = projectEx.ResponseType;
-                response.ErrorMessage = projectEx.ResponseType.GetDescription();
+                response.ErrorMessage = projectEx.Message;
 
                 context.Response.StatusCode = projectEx.ResponseType.ToHttpStatusCode();
 

@@ -20,29 +20,49 @@ public class RequirePermissionAttribute : AuthorizeAttribute
 public static class Permissions
 {
     // Account permissions
-    public const string ViewAccounts = "accounts.view";
-    public const string CreateAccount = "accounts.create";
-    public const string EditAccount = "accounts.edit";
-    public const string DeleteAccount = "accounts.delete";
-    public const string ManageRoles = "accounts.manage_roles";
+    public const string ViewAccounts = "account.view";
+    public const string CreateAccount = "account.create";
+    public const string EditAccount = "account.update";
+    public const string DeleteAccount = "account.delete";
+    public const string ManageRoles = "account.update";
 
     // Role permissions
-    public const string ViewRoles = "roles.view";
-    public const string CreateRole = "roles.create";
-    public const string EditRole = "roles.edit";
-    public const string DeleteRole = "roles.delete";
-    public const string AssignPermissions = "roles.assign_permissions";
+    public const string ViewRoles = "role.view";
+    public const string CreateRole = "role.create";
+    public const string EditRole = "role.update";
+    public const string DeleteRole = "role.delete";
+    public const string AssignPermissions = "permission.assign";
 
     // Permission permissions
-    public const string ViewPermissions = "permissions.view";
-    public const string CreatePermission = "permissions.create";
-    public const string EditPermission = "permissions.edit";
-    public const string DeletePermission = "permissions.delete";
-    public const string ManageRolePermissions = "roles.manage_permissions";
+    public const string ViewPermissions = "permission.view";
+    public const string CreatePermission = "permission.assign";
+    public const string EditPermission = "permission.assign";
+    public const string DeletePermission = "permission.assign";
+    public const string ManageRolePermissions = "permission.assign";
 
     // Product permissions (example)
-    public const string ViewProducts = "products.view";
-    public const string CreateProduct = "products.create";
-    public const string EditProduct = "products.edit";
-    public const string DeleteProduct = "products.delete";
+    public const string ViewProducts = "product.view";
+    public const string CreateProduct = "product.create";
+    public const string EditProduct = "product.update";
+    public const string DeleteProduct = "product.delete";
+
+    // Brand permissions
+    public const string ViewBrands = "brand.view";
+    public const string CreateBrand = "brand.create";
+    public const string EditBrand = "brand.update";
+    public const string DeleteBrand = "brand.delete";
+    public const string ManageBrands = "brand.manage";
+
+    // Category permissions
+    public const string ViewCategories = "category.view";
+    public const string CreateCategory = "category.create";
+    public const string EditCategory = "category.update";
+    public const string DeleteCategory = "category.delete";
+    public const string ManageCategories = "category.manage";
+
+    // Order permissions
+    public const string CreateOrder = "order.create";
+    public const string ViewMyOrders = "order.view.mine";
+    public const string ViewAllOrders = "order.view.all";
+    public const string ManageOrders = "order.manage";
 }

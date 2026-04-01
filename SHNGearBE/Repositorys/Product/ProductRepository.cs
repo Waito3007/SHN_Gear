@@ -35,6 +35,7 @@ public class ProductRepository : GenericRepository<ProductEntity>, IProductRepos
             .Include(p => p.ProductAttributes).ThenInclude(pa => pa.AttributeDefinition)
             .Include(p => p.Variants).ThenInclude(v => v.Prices)
             .Include(p => p.Variants).ThenInclude(v => v.VariantAttributes).ThenInclude(va => va.AttributeDefinition)
+            .AsSplitQuery()
             .Where(p => !p.IsDelete && p.Id == id)
             .FirstOrDefaultAsync(cancellationToken);
     }

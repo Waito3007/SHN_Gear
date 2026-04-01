@@ -64,3 +64,27 @@ public class AssignRoleRequestDto
     public Guid AccountId { get; set; }
     public Guid RoleId { get; set; }
 }
+
+public class SendOtpRequestDto
+{
+    public string Email { get; set; } = null!;
+}
+
+public class VerifyOtpRequestDto
+{
+    public string Email { get; set; } = null!;
+    public string Otp { get; set; } = null!;
+}
+
+public class VerifyForgotPasswordOtpResponseDto
+{
+    public string VerificationToken { get; set; } = null!;
+    public DateTime ExpiresAt { get; set; }
+}
+
+public class ResetForgotPasswordRequestDto
+{
+    public string Email { get; set; } = null!;
+    public string VerificationToken { get; set; } = null!;
+    public string NewPassword { get; set; } = null!;
+}

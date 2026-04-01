@@ -9,8 +9,11 @@ using SHNGearBE.Repositorys.Interface.Account;
 using SHNGearBE.Repositorys.Interface.Role;
 using SHNGearBE.Repositorys.Interface.Permission;
 using SHNGearBE.Repositorys.Interface.RefreshToken;
+using SHNGearBE.Infrastructure.Redis;
 using SHNGearBE.Services.Interfaces.Account;
 using SHNGearBE.UnitOfWork;
+using SHNGearMailService.Abstractions;
+using SHNGearMailService.Models;
 
 namespace SHNGearBE.Services.Account;
 
@@ -20,6 +23,9 @@ public class AuthService : IAuthService
     private readonly IRefreshTokenRepository _refreshTokenRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly IPermissionRepository _permissionRepository;
+    private readonly ICacheService _cacheService;
+    private readonly IEmailService _emailService;
+    private readonly IEmailTemplateRenderer _emailTemplateRenderer;
     private readonly ITokenService _tokenService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly JwtSettings _jwtSettings;
@@ -29,6 +35,9 @@ public class AuthService : IAuthService
         IRefreshTokenRepository refreshTokenRepository,
         IRoleRepository roleRepository,
         IPermissionRepository permissionRepository,
+        ICacheService cacheService,
+        IEmailService emailService,
+        IEmailTemplateRenderer emailTemplateRenderer,
         ITokenService tokenService,
         IUnitOfWork unitOfWork,
         IOptions<JwtSettings> jwtSettings)
@@ -37,6 +46,9 @@ public class AuthService : IAuthService
         _refreshTokenRepository = refreshTokenRepository;
         _roleRepository = roleRepository;
         _permissionRepository = permissionRepository;
+        _cacheService = cacheService;
+        _emailService = emailService;
+        _emailTemplateRenderer = emailTemplateRenderer;
         _tokenService = tokenService;
         _unitOfWork = unitOfWork;
         _jwtSettings = jwtSettings.Value;
@@ -104,6 +116,9 @@ public class AuthService : IAuthService
             await _unitOfWork.SaveAsync();
             await _unitOfWork.CommitAsync();
 
+            await _cacheService.SetAsync(GetEmailVerificationRequiredKey(account.Email), true, TimeSpan.FromDays(30));
+            await SendEmailVerificationOtpAsync(account.Email);
+
             return await GenerateLoginResponse(account.Id);
         }
         catch
@@ -122,6 +137,12 @@ public class AuthService : IAuthService
         if (account == null)
         {
             throw new ProjectException(ResponseType.Unauthorized, "Invalid credentials");
+        }
+
+        var verificationRequired = await _cacheService.GetAsync<bool>(GetEmailVerificationRequiredKey(account.Email));
+        if (verificationRequired)
+        {
+            throw new ProjectException(ResponseType.Forbidden, "Email verification is required");
         }
 
         // Verify password
@@ -218,6 +239,204 @@ public class AuthService : IAuthService
         return true;
     }
 
+    public async Task SendEmailVerificationOtpAsync(string email, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ProjectException(ResponseType.InvalidData, "Email is required");
+        }
+
+        var account = await _accountRepository.GetByEmailAsync(email.Trim().ToLowerInvariant());
+        if (account == null)
+        {
+            throw new ProjectException(ResponseType.NotFound, "Account not found");
+        }
+
+        var otp = GenerateOtp();
+        var otpKey = GetEmailVerificationOtpKey(account.Email);
+        var attemptKey = GetOtpAttemptKey(otpKey);
+
+        await _cacheService.SetAsync(otpKey, otp, TimeSpan.FromMinutes(5));
+        await _cacheService.SetAsync(attemptKey, 0, TimeSpan.FromMinutes(5));
+
+        var rendered = _emailTemplateRenderer.RenderOtpTemplate(
+            OtpEmailTemplateType.VerifyEmail,
+            new OtpEmailTemplateData
+            {
+                RecipientName = account.Username ?? account.Email,
+                OtpCode = otp,
+                ExpiryMinutes = 5
+            });
+
+        var emailMessage = new EmailMessage
+        {
+            Subject = rendered.Subject,
+            Body = rendered.HtmlBody,
+            IsHtml = true,
+            To =
+            {
+                new EmailAddress { Address = account.Email, DisplayName = account.Username }
+            }
+        };
+
+        var sendResult = await _emailService.SendAsync(emailMessage, cancellationToken);
+        if (!sendResult.Success)
+        {
+            throw new ProjectException(ResponseType.ServiceUnavailable, sendResult.ErrorMessage ?? "Unable to send OTP email");
+        }
+    }
+
+    public async Task<bool> VerifyEmailOtpAsync(string email, string otp, CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = NormalizeEmail(email);
+        ValidateOtpInput(otp);
+
+        var account = await _accountRepository.GetByEmailAsync(normalizedEmail);
+        if (account == null)
+        {
+            throw new ProjectException(ResponseType.NotFound, "Account not found");
+        }
+
+        var otpKey = GetEmailVerificationOtpKey(normalizedEmail);
+        var attemptKey = GetOtpAttemptKey(otpKey);
+        await EnsureNotLockedAsync(attemptKey);
+
+        var cachedOtp = await _cacheService.GetAsync<string>(otpKey);
+        if (string.IsNullOrWhiteSpace(cachedOtp) || !string.Equals(cachedOtp, otp.Trim(), StringComparison.Ordinal))
+        {
+            await IncreaseAttemptAsync(attemptKey);
+            throw new ProjectException(ResponseType.InvalidData, "OTP is invalid or expired");
+        }
+
+        await _cacheService.RemoveAsync(otpKey);
+        await _cacheService.RemoveAsync(attemptKey);
+        await _cacheService.SetAsync(GetEmailVerifiedKey(normalizedEmail), true, TimeSpan.FromDays(3650));
+        await _cacheService.RemoveAsync(GetEmailVerificationRequiredKey(normalizedEmail));
+
+        return true;
+    }
+
+    public async Task SendForgotPasswordOtpAsync(string email, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ProjectException(ResponseType.InvalidData, "Email is required");
+        }
+
+        var normalizedEmail = NormalizeEmail(email);
+        var account = await _accountRepository.GetByEmailAsync(normalizedEmail);
+        if (account == null)
+        {
+            return;
+        }
+
+        var otp = GenerateOtp();
+        var otpKey = GetForgotPasswordOtpKey(normalizedEmail);
+        var attemptKey = GetOtpAttemptKey(otpKey);
+
+        await _cacheService.SetAsync(otpKey, otp, TimeSpan.FromMinutes(5));
+        await _cacheService.SetAsync(attemptKey, 0, TimeSpan.FromMinutes(5));
+
+        var rendered = _emailTemplateRenderer.RenderOtpTemplate(
+            OtpEmailTemplateType.ForgotPassword,
+            new OtpEmailTemplateData
+            {
+                RecipientName = account.Username ?? account.Email,
+                OtpCode = otp,
+                ExpiryMinutes = 5
+            });
+
+        var emailMessage = new EmailMessage
+        {
+            Subject = rendered.Subject,
+            Body = rendered.HtmlBody,
+            IsHtml = true,
+            To =
+            {
+                new EmailAddress { Address = account.Email, DisplayName = account.Username }
+            }
+        };
+
+        var sendResult = await _emailService.SendAsync(emailMessage, cancellationToken);
+        if (!sendResult.Success)
+        {
+            throw new ProjectException(ResponseType.ServiceUnavailable, sendResult.ErrorMessage ?? "Unable to send OTP email");
+        }
+    }
+
+    public async Task<VerifyForgotPasswordOtpResponseDto> VerifyForgotPasswordOtpAsync(string email, string otp, CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = NormalizeEmail(email);
+        ValidateOtpInput(otp);
+
+        var otpKey = GetForgotPasswordOtpKey(normalizedEmail);
+        var attemptKey = GetOtpAttemptKey(otpKey);
+
+        await EnsureNotLockedAsync(attemptKey);
+
+        var cachedOtp = await _cacheService.GetAsync<string>(otpKey);
+        if (string.IsNullOrWhiteSpace(cachedOtp) || !string.Equals(cachedOtp, otp.Trim(), StringComparison.Ordinal))
+        {
+            await IncreaseAttemptAsync(attemptKey);
+            throw new ProjectException(ResponseType.InvalidData, "OTP is invalid or expired");
+        }
+
+        await _cacheService.RemoveAsync(otpKey);
+        await _cacheService.RemoveAsync(attemptKey);
+
+        var verificationToken = Guid.NewGuid().ToString("N");
+        var tokenKey = GetForgotPasswordTokenKey(verificationToken);
+        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+
+        await _cacheService.SetAsync(tokenKey, normalizedEmail, TimeSpan.FromMinutes(10));
+
+        return new VerifyForgotPasswordOtpResponseDto
+        {
+            VerificationToken = verificationToken,
+            ExpiresAt = expiresAt
+        };
+    }
+
+    public async Task<bool> ResetForgotPasswordAsync(ResetForgotPasswordRequestDto request, CancellationToken cancellationToken = default)
+    {
+        var normalizedEmail = NormalizeEmail(request.Email);
+
+        if (string.IsNullOrWhiteSpace(request.VerificationToken))
+        {
+            throw new ProjectException(ResponseType.InvalidData, "Verification token is required");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+        {
+            throw new ProjectException(ResponseType.InvalidData, "New password is invalid");
+        }
+
+        var tokenKey = GetForgotPasswordTokenKey(request.VerificationToken.Trim());
+        var emailFromToken = await _cacheService.GetAsync<string>(tokenKey);
+        if (string.IsNullOrWhiteSpace(emailFromToken) || !string.Equals(emailFromToken, normalizedEmail, StringComparison.Ordinal))
+        {
+            throw new ProjectException(ResponseType.InvalidData, "Verification token is invalid or expired");
+        }
+
+        var account = await _accountRepository.GetByEmailAsync(normalizedEmail);
+        if (account == null)
+        {
+            throw new ProjectException(ResponseType.NotFound, "Account not found");
+        }
+
+        var (passwordHash, salt) = HashPassword(request.NewPassword);
+        account.PasswordHash = passwordHash;
+        account.Salt = salt;
+        account.UpdateAt = DateTime.UtcNow;
+
+        await _accountRepository.UpdateAsync(account);
+        await _refreshTokenRepository.RevokeAllUserTokensAsync(account.Id);
+        await _unitOfWork.SaveAsync();
+
+        await _cacheService.RemoveAsync(tokenKey);
+        return true;
+    }
+
     private async Task<LoginResponseDto> GenerateLoginResponse(Guid accountId)
     {
         var account = await _accountRepository.GetAccountWithRolesAndPermissionsAsync(accountId);
@@ -299,4 +518,62 @@ public class AuthService : IAuthService
         var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
         return Convert.ToBase64String(hash);
     }
+
+    private static string NormalizeEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ProjectException(ResponseType.InvalidData, "Email is required");
+        }
+
+        return email.Trim().ToLowerInvariant();
+    }
+
+    private static void ValidateOtpInput(string otp)
+    {
+        if (string.IsNullOrWhiteSpace(otp) || otp.Trim().Length != 6)
+        {
+            throw new ProjectException(ResponseType.InvalidData, "OTP must be 6 digits");
+        }
+    }
+
+    private static string GenerateOtp()
+    {
+        var value = RandomNumberGenerator.GetInt32(0, 1_000_000);
+        return value.ToString("D6");
+    }
+
+    private async Task EnsureNotLockedAsync(string attemptKey)
+    {
+        var attempts = await _cacheService.GetAsync<int>(attemptKey);
+        if (attempts >= 5)
+        {
+            throw new ProjectException(ResponseType.Forbidden, "OTP has been locked due to too many attempts");
+        }
+    }
+
+    private async Task IncreaseAttemptAsync(string attemptKey)
+    {
+        var attempts = await _cacheService.GetAsync<int>(attemptKey);
+        attempts++;
+        await _cacheService.SetAsync(attemptKey, attempts, TimeSpan.FromMinutes(5));
+    }
+
+    private static string GetEmailVerificationOtpKey(string email)
+        => $"auth:otp:verify-email:{email}";
+
+    private static string GetForgotPasswordOtpKey(string email)
+        => $"auth:otp:forgot-password:{email}";
+
+    private static string GetOtpAttemptKey(string otpKey)
+        => $"{otpKey}:attempts";
+
+    private static string GetForgotPasswordTokenKey(string token)
+        => $"auth:forgot-password:token:{token}";
+
+    private static string GetEmailVerifiedKey(string email)
+        => $"auth:email-verified:{email}";
+
+    private static string GetEmailVerificationRequiredKey(string email)
+        => $"auth:email-verification-required:{email}";
 }

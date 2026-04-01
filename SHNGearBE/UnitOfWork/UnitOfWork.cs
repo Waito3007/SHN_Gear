@@ -14,6 +14,8 @@ public class UnitOfWork : IUnitOfWork, IDisposable
         _context = context;
     }
 
+    public ApplicationDbContext Context => _context;
+
     public void Dispose()
     {
         Dispose(true);
@@ -62,5 +64,10 @@ public class UnitOfWork : IUnitOfWork, IDisposable
     public async Task SaveAsync()
     {
         await _context.SaveChangesAsync();
+    }
+
+    public void ClearChangeTracker()
+    {
+        _context.ChangeTracker.Clear();
     }
 }

@@ -30,7 +30,11 @@ INSERT INTO "Permissions" ("Id", "Name", "Description", "CreateAt", "UpdateAt", 
 ('a1000005-0000-0000-0000-000000000002', 'category.manage', 'Manage categories', NOW(), NULL, false),
 -- Brand permissions
 ('a1000006-0000-0000-0000-000000000001', 'brand.view', 'View brand list', NOW(), NULL, false),
-('a1000006-0000-0000-0000-000000000002', 'brand.manage', 'Manage brands', NOW(), NULL, false);
+('a1000006-0000-0000-0000-000000000002', 'brand.manage', 'Manage brands', NOW(), NULL, false),
+('a1000007-0000-0000-0000-000000000001', 'order.create', 'Create order', NOW(), NULL, false),
+('a1000007-0000-0000-0000-000000000002', 'order.view.mine', 'View own orders', NOW(), NULL, false),
+('a1000007-0000-0000-0000-000000000003', 'order.view.all', 'View all orders', NOW(), NULL, false),
+('a1000007-0000-0000-0000-000000000004', 'order.manage', 'Manage orders', NOW(), NULL, false);
 
 -- =====================================================
 -- 2. ROLES (Vai trò)
@@ -61,7 +65,9 @@ INSERT INTO "RolePermissions" ("RoleId", "PermissionId") VALUES
 ('b1000001-0000-0000-0000-000000000002', 'a1000005-0000-0000-0000-000000000001'),
 ('b1000001-0000-0000-0000-000000000002', 'a1000005-0000-0000-0000-000000000002'),
 ('b1000001-0000-0000-0000-000000000002', 'a1000006-0000-0000-0000-000000000001'),
-('b1000001-0000-0000-0000-000000000002', 'a1000006-0000-0000-0000-000000000002');
+('b1000001-0000-0000-0000-000000000002', 'a1000006-0000-0000-0000-000000000002'),
+('b1000001-0000-0000-0000-000000000002', 'a1000007-0000-0000-0000-000000000003'),
+('b1000001-0000-0000-0000-000000000002', 'a1000007-0000-0000-0000-000000000004');
 
 -- Manager: Product management only
 INSERT INTO "RolePermissions" ("RoleId", "PermissionId") VALUES
@@ -69,7 +75,9 @@ INSERT INTO "RolePermissions" ("RoleId", "PermissionId") VALUES
 ('b1000001-0000-0000-0000-000000000003', 'a1000004-0000-0000-0000-000000000002'),
 ('b1000001-0000-0000-0000-000000000003', 'a1000004-0000-0000-0000-000000000003'),
 ('b1000001-0000-0000-0000-000000000003', 'a1000005-0000-0000-0000-000000000001'),
-('b1000001-0000-0000-0000-000000000003', 'a1000006-0000-0000-0000-000000000001');
+('b1000001-0000-0000-0000-000000000003', 'a1000006-0000-0000-0000-000000000001'),
+('b1000001-0000-0000-0000-000000000003', 'a1000007-0000-0000-0000-000000000003'),
+('b1000001-0000-0000-0000-000000000003', 'a1000007-0000-0000-0000-000000000004');
 
 -- Staff: View only
 INSERT INTO "RolePermissions" ("RoleId", "PermissionId") VALUES
@@ -81,18 +89,20 @@ INSERT INTO "RolePermissions" ("RoleId", "PermissionId") VALUES
 INSERT INTO "RolePermissions" ("RoleId", "PermissionId") VALUES
 ('b1000001-0000-0000-0000-000000000005', 'a1000004-0000-0000-0000-000000000001'),
 ('b1000001-0000-0000-0000-000000000005', 'a1000005-0000-0000-0000-000000000001'),
-('b1000001-0000-0000-0000-000000000005', 'a1000006-0000-0000-0000-000000000001');
+('b1000001-0000-0000-0000-000000000005', 'a1000006-0000-0000-0000-000000000001'),
+('b1000001-0000-0000-0000-000000000005', 'a1000007-0000-0000-0000-000000000001'),
+('b1000001-0000-0000-0000-000000000005', 'a1000007-0000-0000-0000-000000000002');
 
 -- =====================================================
 -- 4. ACCOUNTS (Tài khoản)
--- Password: Admin@123 (hash with BCrypt)
+-- Password: Admin@123 (HMACSHA512 hash)
 -- =====================================================
 INSERT INTO "Accounts" ("Id", "Username", "Email", "PasswordHash", "Salt", "CreateAt", "UpdateAt", "IsDelete") VALUES
-('c1000001-0000-0000-0000-000000000001', 'superadmin', 'superadmin@shngear.com', '$2a$11$Kp5qOPOHPGOBp.Chn3v9p.9DQe7P4GQBm9hZz7qZ2tGVJcPL5Gx4W', 'randomsalt1', NOW(), NULL, false),
-('c1000001-0000-0000-0000-000000000002', 'admin', 'admin@shngear.com', '$2a$11$Kp5qOPOHPGOBp.Chn3v9p.9DQe7P4GQBm9hZz7qZ2tGVJcPL5Gx4W', 'randomsalt2', NOW(), NULL, false),
-('c1000001-0000-0000-0000-000000000003', 'manager', 'manager@shngear.com', '$2a$11$Kp5qOPOHPGOBp.Chn3v9p.9DQe7P4GQBm9hZz7qZ2tGVJcPL5Gx4W', 'randomsalt3', NOW(), NULL, false),
-('c1000001-0000-0000-0000-000000000004', 'staff', 'staff@shngear.com', '$2a$11$Kp5qOPOHPGOBp.Chn3v9p.9DQe7P4GQBm9hZz7qZ2tGVJcPL5Gx4W', 'randomsalt4', NOW(), NULL, false),
-('c1000001-0000-0000-0000-000000000005', 'customer1', 'customer1@gmail.com', '$2a$11$Kp5qOPOHPGOBp.Chn3v9p.9DQe7P4GQBm9hZz7qZ2tGVJcPL5Gx4W', 'randomsalt5', NOW(), NULL, false);
+('c1000001-0000-0000-0000-000000000001', 'superadmin', 'superadmin@shngear.com', 'HCwnluIhUZsd+vD9Y8rBz2r3aS9qX1xvQRFvxROZUddhj2+iIIfIKqwrQscyXQip0JzDbi4dfmJmaPidMXurTw==', '1E/NV78n7iUF9wzC+mGIICRpiN4cPDhXlyw7H7XSefs=', NOW(), NULL, false),
+('c1000001-0000-0000-0000-000000000002', 'admin', 'admin@shngear.com', 'SpWspRwLfsxW5hoYVg6Zcw98kbzzITnOBGHsb0VYUXaPWTEBUd9ZvBXAlUibCFRJ2BpQkqXDq8ETf/Sov53kcQ==', 'itj4LMN4gDY5bv5NLipThI7N9dpG0eLgOwnIwjpupcg=', NOW(), NULL, false),
+('c1000001-0000-0000-0000-000000000003', 'manager', 'manager@shngear.com', 'Xhn/QVD6PhTyKg23G+t69uNMYuBXrKuZDtzOrwnaVov1t6kHDLbEriWoZvd4zcEtmNzGiMzzB7WnEEGscSetFg==', '7RnxC/j/7ZxRvV1AheDNNZNCPiXSgiNiA8ptX8ugkrc=', NOW(), NULL, false),
+('c1000001-0000-0000-0000-000000000004', 'staff', 'staff@shngear.com', '1kcjMd5Ew7JqQN6EB7u8KgcLVy5rx8aUo86b/+x9v6IBIFgbKp0i0zpbJNRvW/ePVaWHi1a6piQI7OAvNPzePw==', 'QrVVxYrdeBiCOHi1dk4Dou7l+M+qPGAeM/rzLlvgMZQ=', NOW(), NULL, false),
+('c1000001-0000-0000-0000-000000000005', 'customer1', 'customer1@gmail.com', 'yUknM2Vo8Q8u7kjZslNzVgU9xDiejTvSdPFKqcnVww1ISbMefJP4Qn4leeR6RmNLKU1n9j7IUihFtQKa717taw==', '6amjzgi6iCfkPrP+qVo/jTRBz8wSN8jcsgnx68wpmeA=', NOW(), NULL, false);
 
 -- =====================================================
 -- 5. ACCOUNT_DETAILS (Thông tin chi tiết)

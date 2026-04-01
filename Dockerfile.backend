@@ -6,9 +6,11 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY SANBGLog/BackgroundLogService.csproj SANBGLog/
 COPY SHNGearBE/SHNGearBE.csproj SHNGearBE/
+COPY SHNGearMailService/SHNGearMailService.csproj SHNGearMailService/
 RUN dotnet restore SHNGearBE/SHNGearBE.csproj
 COPY SANBGLog/ SANBGLog/
 COPY SHNGearBE/ SHNGearBE/
+COPY SHNGearMailService/ SHNGearMailService/
 WORKDIR /src/SHNGearBE
 RUN dotnet publish -c Release -o /app/publish -p:ErrorOnDuplicatePublishOutputFiles=false
 

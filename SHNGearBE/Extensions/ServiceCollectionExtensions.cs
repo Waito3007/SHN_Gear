@@ -14,9 +14,12 @@ using SHNGearBE.Repositorys.Interface.RefreshToken;
 using SHNGearBE.Repositorys.Interface.Product;
 using SHNGearBE.Repositorys.Address;
 using SHNGearBE.Repositorys.Interface.Address;
+using SHNGearBE.Repositorys.Order;
+using SHNGearBE.Repositorys.Interface.Order;
 using SHNGearBE.Services.Account;
 using SHNGearBE.Services.Role;
 using SHNGearBE.Services.Permission;
+using SHNGearBE.Services.Order;
 using SHNGearBE.Services;
 using SHNGearBE.Services.Interfaces.Account;
 using SHNGearBE.Services.Interfaces.Role;
@@ -24,10 +27,15 @@ using SHNGearBE.Services.Interfaces.Permission;
 using SHNGearBE.Services.Interfaces;
 using SHNGearBE.Services.Interfaces.Address;
 using SHNGearBE.Services.Interfaces.Cart;
+using SHNGearBE.Services.Interfaces.Order;
 using SHNGearBE.Services.Cart;
 using SHNGearBE.UnitOfWork;
 using SHNGearBE.Configurations;
 using SHNGearBE.Infrastructure.Redis;
+using SHNGearBE.Infrastructure.Media;
+using SHNGearBE.Infrastructure.Payment;
+using SHNGearBE.Services.Interfaces.Media;
+using SHNGearBE.Services.Interfaces.Product;
 
 namespace SHNGearBE.Extensions;
 
@@ -77,7 +85,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IPermissionRepository, PermissionRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IBrandRepository, BrandRepository>();
         services.AddScoped<IAddressRepository, AddressRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
         return services;
     }
 
@@ -96,12 +107,50 @@ public static class ServiceCollectionExtensions
 
         // Product services
         services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IProductMetaService, ProductMetaService>();
+        services.AddScoped<IBrandService, BrandService>();
+        services.AddScoped<ICategoryService, CategoryService>();
 
         // Address services
         services.AddScoped<IAddressService, SHNGearBE.Services.Address.AddressService>();
 
         // Cart services (Redis-based)
         services.AddScoped<ICartService, CartService>();
+
+        // Order services
+        services.AddScoped<IOrderService, OrderService>();
+
+        // Payment strategies (Strategy pattern)
+        services.AddScoped<IPaymentStrategy, CodPaymentStrategy>();
+        services.AddScoped<IPaymentStrategyResolver, PaymentStrategyResolver>();
+
+        // Media services (Cloudinary)
+        services.AddScoped<IImageStorageService, CloudinaryImageStorageService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddCloudinarySettings(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<CloudinarySettings>(options =>
+        {
+            configuration.GetSection(CloudinarySettings.SectionName).Bind(options);
+
+            if (string.IsNullOrWhiteSpace(options.CloudName))
+            {
+                options.CloudName = Environment.GetEnvironmentVariable("CLOUDINARY_CLOUD_NAME");
+            }
+
+            if (string.IsNullOrWhiteSpace(options.ApiKey))
+            {
+                options.ApiKey = Environment.GetEnvironmentVariable("CLOUDINARY_API_KEY");
+            }
+
+            if (string.IsNullOrWhiteSpace(options.ApiSecret))
+            {
+                options.ApiSecret = Environment.GetEnvironmentVariable("CLOUDINARY_API_SECRET");
+            }
+        });
 
         return services;
     }

@@ -105,6 +105,7 @@ public static class ResponseTypeExtensions
             4003 => 403,
             4009 => 409,
             >= 4010 and < 5000 => 409,              // AlreadyExists/Conflict
+            5003 => 503,
             _ => 500                                 // Server errors
         };
     }

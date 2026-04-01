@@ -10,4 +10,9 @@ public interface IAuthService
     Task RevokeTokenAsync(string token);
     Task LogoutAsync(Guid accountId);
     Task<bool> ChangePasswordAsync(Guid accountId, ChangePasswordRequestDto request);
+    Task SendEmailVerificationOtpAsync(string email, CancellationToken cancellationToken = default);
+    Task<bool> VerifyEmailOtpAsync(string email, string otp, CancellationToken cancellationToken = default);
+    Task SendForgotPasswordOtpAsync(string email, CancellationToken cancellationToken = default);
+    Task<VerifyForgotPasswordOtpResponseDto> VerifyForgotPasswordOtpAsync(string email, string otp, CancellationToken cancellationToken = default);
+    Task<bool> ResetForgotPasswordAsync(ResetForgotPasswordRequestDto request, CancellationToken cancellationToken = default);
 }
