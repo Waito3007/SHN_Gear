@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { productApi } from '../api/product';
 import { cartApi } from '../api/cart';
 import { useAuth } from '../context/AuthContext';
 import type { ProductDetail } from '../types';
 import { ChevronRight, ShoppingCart, Plus, Minus } from 'lucide-react';
+import { resolveImageUrl } from '../utils/image';
+import { useCart } from '../context/CartContext';
+import { animateFlyToCart } from '../utils/cartAnimation';
 
 function formatPrice(price: number, currency = 'VND') {
   const locale = currency === 'VND' ? 'vi-VN' : 'en-US';
@@ -15,12 +18,14 @@ export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { syncCartCountFromCart } = useCart();
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
-  const [cartMessage, setCartMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [cartError, setCartError] = useState<string | null>(null);
+  const imageBoxRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -49,22 +54,27 @@ export default function ProductDetailPage() {
     const variant = product.variants[selectedVariant];
 
     if (variant.quantity < quantity) {
-      setCartMessage({ type: 'error', text: 'Not enough stock available' });
-      setTimeout(() => setCartMessage(null), 3000);
+      setCartError('Not enough stock available');
+      setTimeout(() => setCartError(null), 3000);
       return;
     }
 
+    setCartError(null);
     setAddingToCart(true);
     try {
-      await cartApi.addItem({ productVariantId: variant.id, quantity });
-      setCartMessage({ type: 'success', text: 'Added to cart!' });
-      setTimeout(() => setCartMessage(null), 3000);
+      const res = await cartApi.addItem({ productVariantId: variant.id, quantity });
+      syncCartCountFromCart(res.data.data);
+      animateFlyToCart({
+        fromElement: imageBoxRef.current,
+        imageUrl: resolveImageUrl(product.imageUrls[0]),
+        fallbackText: product.name.charAt(0),
+      });
       setQuantity(1);
     } catch (error) {
       const err = error as { response?: { data?: { message?: string } } };
       const message = err.response?.data?.message || 'Failed to add to cart';
-      setCartMessage({ type: 'error', text: message });
-      setTimeout(() => setCartMessage(null), 3000);
+      setCartError(message);
+      setTimeout(() => setCartError(null), 3000);
     } finally {
       setAddingToCart(false);
     }
@@ -113,6 +123,7 @@ export default function ProductDetailPage() {
   }
 
   const variant = product.variants[selectedVariant];
+  const imageSrc = resolveImageUrl(product.imageUrls[0]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -127,10 +138,13 @@ export default function ProductDetailPage() {
 
       <div className="grid md:grid-cols-2 gap-12">
         {/* Image */}
-        <div className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex items-center justify-center border border-gray-100">
-          {product.imageUrls.length > 0 ? (
+        <div
+          ref={imageBoxRef}
+          className="aspect-square bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex items-center justify-center border border-gray-100"
+        >
+          {imageSrc ? (
             <img
-              src={product.imageUrls[0]}
+              src={imageSrc}
               alt={product.name}
               className="w-full h-full object-cover rounded-2xl"
             />
@@ -278,13 +292,9 @@ export default function ProductDetailPage() {
                         {addingToCart ? 'Adding...' : 'Add to Cart'}
                       </button>
 
-                      {cartMessage && (
-                        <div className={`p-3 rounded-lg text-sm font-medium ${
-                          cartMessage.type === 'success' 
-                            ? 'bg-green-50 text-green-700 border border-green-200' 
-                            : 'bg-red-50 text-red-700 border border-red-200'
-                        }`}>
-                          {cartMessage.text}
+                      {cartError && (
+                        <div className="p-3 rounded-lg text-sm font-medium bg-red-50 text-red-700 border border-red-200">
+                          {cartError}
                         </div>
                       )}
                     </div>

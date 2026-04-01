@@ -29,6 +29,26 @@ export interface LoginResponse {
   account: AccountDto;
 }
 
+export interface SendOtpRequest {
+  email: string;
+}
+
+export interface VerifyOtpRequest {
+  email: string;
+  otp: string;
+}
+
+export interface VerifyForgotPasswordOtpResponse {
+  verificationToken: string;
+  expiresAt: string;
+}
+
+export interface ResetForgotPasswordRequest {
+  email: string;
+  verificationToken: string;
+  newPassword: string;
+}
+
 export interface AccountDto {
   id: string;
   username?: string;
@@ -46,6 +66,8 @@ export interface ProductListItem {
   code: string;
   name: string;
   slug: string;
+  imageUrl?: string;
+  imageUrls?: string[];
   brandName: string;
   categoryName: string;
   basePrice: number;
@@ -105,6 +127,17 @@ export interface ProductFilterRequest {
   pageSize?: number;
 }
 
+export interface CategoryOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface BrandOption {
+  id: string;
+  name: string;
+}
+
 export interface CartItemDto {
   productVariantId: string;
   productName: string;
@@ -134,3 +167,97 @@ export interface AddToCartRequest {
 export interface UpdateCartItemRequest {
   quantity: number;
 }
+
+export type OrderStatus = 0 | 1 | 2 | 3 | 4 | 5;
+export type PaymentProvider = 0 | 1 | 2;
+export type PaymentStatus = 0 | 1 | 2 | 3;
+
+export interface CreateOrderRequest {
+  deliveryAddressId: string;
+  paymentProvider: PaymentProvider;
+  paymentToken?: string;
+  note?: string;
+}
+
+export interface OrderItemResponse {
+  id: string;
+  productVariantId: string;
+  productName: string;
+  variantName: string;
+  sku: string;
+  unitPrice: number;
+  quantity: number;
+  subTotal: number;
+}
+
+export interface OrderResponse {
+  id: string;
+  code: string;
+  accountId: string;
+  deliveryAddressId: string;
+  status: OrderStatus;
+  paymentProvider: PaymentProvider;
+  paymentStatus: PaymentStatus;
+  subTotal: number;
+  shippingFee: number;
+  totalAmount: number;
+  note?: string;
+  paymentTransactionId?: string;
+  paidAt?: string;
+  cancelledAt?: string;
+  cancelledReason?: string;
+  createdAt: string;
+  items: OrderItemResponse[];
+}
+
+export interface AddressDto {
+  id: string;
+  recipientName: string;
+  phoneNumber: string;
+  province: string;
+  district: string;
+  ward: string;
+  street: string;
+  note?: string;
+  isDefault: boolean;
+}
+
+export interface CreateAddressRequest {
+  recipientName: string;
+  phoneNumber: string;
+  province: string;
+  district: string;
+  ward: string;
+  street: string;
+  note?: string;
+  isDefault: boolean;
+}
+
+export interface UpdateAddressRequest {
+  recipientName: string;
+  phoneNumber: string;
+  province: string;
+  district: string;
+  ward: string;
+  street: string;
+  note?: string;
+  isDefault: boolean;
+}
+
+// Re-export admin types
+export type {
+  RoleDto,
+  PermissionDto,
+  UpdateAccountRequest,
+  CreateProductRequest,
+  UpdateProductRequest,
+  ProductVariantRequest,
+  ImageUploadResult,
+  BrandDto,
+  CreateBrandRequest,
+  UpdateBrandRequest,
+  CategoryDto,
+  CategoryTreeDto,
+  CreateCategoryRequest,
+  UpdateCategoryRequest,
+} from './admin';

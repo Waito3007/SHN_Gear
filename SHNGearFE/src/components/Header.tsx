@@ -1,34 +1,17 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ShoppingBag, User, LogOut, Menu, X, Search, ShoppingCart } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { cartApi } from '../api/cart';
+import { ShoppingBag, User, Menu, X, Search, ShoppingCart } from 'lucide-react';
+import { useState } from 'react';
+import UserMenu from './UserMenu';
+import { useCart } from '../context/CartContext';
+import { hasAdminAccess } from '../utils/permissions';
 
 export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
+  const { cartItemCount } = useCart();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [cartItemCount, setCartItemCount] = useState(0);
-
-  // Fetch cart count when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchCartCount();
-    } else {
-      setCartItemCount(0);
-    }
-  }, [isAuthenticated]);
-
-  const fetchCartCount = async () => {
-    try {
-      const res = await cartApi.getCart();
-      const totalItems = res.data.data.items.reduce((sum, item) => sum + item.quantity, 0);
-      setCartItemCount(totalItems);
-    } catch {
-      // Silently fail - cart count is not critical
-    }
-  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,7 +60,7 @@ export default function Header() {
             <Link to="/products" className="text-sm font-medium text-gray-700 hover:text-black transition-colors">
               Products
             </Link>
-            <Link to="/cart" className="relative text-gray-700 hover:text-black transition-colors">
+            <Link to="/cart" className="relative text-gray-700 hover:text-black transition-colors" data-cart-icon>
               <ShoppingCart className="w-5 h-5" />
               {cartItemCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold">
@@ -85,18 +68,8 @@ export default function Header() {
                 </span>
               )}
             </Link>
-            {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-gray-600">
-                  {user?.username || user?.email}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-1 text-sm text-gray-600 hover:text-black transition-colors"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
+            {isAuthenticated && user ? (
+              <UserMenu user={user} onLogout={handleLogout} />
             ) : (
               <Link
                 to="/login"
@@ -150,17 +123,51 @@ export default function Header() {
               to="/cart"
               onClick={() => setMobileOpen(false)}
               className="flex items-center gap-2 py-2 text-sm font-medium text-gray-700"
+              data-cart-icon
             >
               <ShoppingCart className="w-4 h-4" />
               Cart {cartItemCount > 0 && `(${cartItemCount})`}
             </Link>
-            {isAuthenticated ? (
-              <button
-                onClick={() => { handleLogout(); setMobileOpen(false); }}
-                className="block py-2 text-sm font-medium text-gray-700"
-              >
-                Sign Out
-              </button>
+            {isAuthenticated && user ? (
+              <>
+                <div className="pt-3 pb-2 border-t border-gray-200 mt-2">
+                  <p className="px-1 text-xs font-semibold text-gray-900">
+                    {user.username || user.email.split('@')[0]}
+                  </p>
+                  <p className="px-1 text-xs text-gray-500 truncate">
+                    {user.email}
+                  </p>
+                </div>
+                {hasAdminAccess(user.permissions || []) && (
+                  <Link
+                    to="/admin/dashboard"
+                    onClick={() => setMobileOpen(false)}
+                    className="block py-2 text-sm font-medium text-gray-700 hover:text-black"
+                  >
+                    Admin Dashboard
+                  </Link>
+                )}
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  My Profile
+                </Link>
+                <Link
+                  to="/orders"
+                  onClick={() => setMobileOpen(false)}
+                  className="block py-2 text-sm font-medium text-gray-700 hover:text-black"
+                >
+                  My Orders
+                </Link>
+                <button
+                  onClick={() => { handleLogout(); setMobileOpen(false); }}
+                  className="block py-2 text-sm font-medium text-red-600 hover:text-red-700 w-full text-left"
+                >
+                  Sign Out
+                </button>
+              </>
             ) : (
               <Link
                 to="/login"

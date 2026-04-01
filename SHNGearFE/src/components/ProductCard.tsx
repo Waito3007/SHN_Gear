@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { ProductListItem } from '../types';
+import { resolveImageUrl } from '../utils/image';
 
 function formatPrice(price: number, currency = 'VND') {
   const locale = currency === 'VND' ? 'vi-VN' : 'en-US';
@@ -12,17 +13,27 @@ function formatPrice(price: number, currency = 'VND') {
 
 export default function ProductCard({ product }: { product: ProductListItem }) {
   const hasDiscount = product.salePrice != null && product.salePrice < product.basePrice;
+  const firstImage = product.imageUrl || product.imageUrls?.[0];
+  const imageSrc = resolveImageUrl(firstImage);
 
   return (
     <Link
       to={`/product/${product.slug}`}
       className="group block gradient-card rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
     >
-      {/* Image placeholder */}
+      {/* Product image */}
       <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center relative overflow-hidden">
-        <span className="text-4xl font-bold text-gray-300 group-hover:scale-110 transition-transform duration-300">
-          {product.name.charAt(0)}
-        </span>
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <span className="text-4xl font-bold text-gray-300 group-hover:scale-110 transition-transform duration-300">
+            {product.name.charAt(0)}
+          </span>
+        )}
         {hasDiscount && (
           <span className="absolute top-3 right-3 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
             SALE

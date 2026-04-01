@@ -1,19 +1,32 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ShoppingBag, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, loading, error, clearError } = useAuth();
   const navigate = useNavigate();
-  const [emailOrUsername, setEmailOrUsername] = useState('');
+  const [searchParams] = useSearchParams();
+  const emailFromQuery = searchParams.get('email') || '';
+  const [emailOrUsername, setEmailOrUsername] = useState(emailFromQuery);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
+  const sessionExpired = searchParams.get('reason') === 'session-expired';
+  const verified = searchParams.get('verified') === '1';
+  const passwordReset = searchParams.get('reset') === '1';
+
+  useEffect(() => {
+    clearError();
+    if (emailFromQuery) {
+      setEmailOrUsername(emailFromQuery);
+    }
+  }, [clearError, emailFromQuery]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(emailOrUsername, password);
-    if (!error) navigate('/');
+    const success = await login(emailOrUsername, password);
+    if (success) navigate('/');
   };
 
   return (
@@ -28,6 +41,24 @@ export default function LoginPage() {
               Sign in to your SHNGear account
             </p>
           </div>
+
+          {sessionExpired && (
+            <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+              Your session expired. Please sign in again to continue.
+            </div>
+          )}
+
+          {verified && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-800">
+              Email verified successfully. You can now sign in.
+            </div>
+          )}
+
+          {passwordReset && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm text-emerald-800">
+              Password reset successful. Please sign in with your new password.
+            </div>
+          )}
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
@@ -72,6 +103,11 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              <div className="mt-2 text-right">
+                <Link to="/forgot-password" className="text-xs text-gray-600 hover:text-black hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <button
@@ -97,6 +133,16 @@ export default function LoginPage() {
             Don&apos;t have an account?{' '}
             <Link to="/register" className="font-medium text-black hover:underline">
               Sign up
+            </Link>
+          </p>
+
+          <p className="text-center text-xs text-gray-500 mt-2">
+            Not verified yet?{' '}
+            <Link
+              to={`/verify-email-otp${emailOrUsername.trim() ? `?email=${encodeURIComponent(emailOrUsername.trim())}` : ''}`}
+              className="font-medium text-black hover:underline"
+            >
+              Enter OTP
             </Link>
           </p>
         </div>

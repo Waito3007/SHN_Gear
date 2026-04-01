@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ShoppingBag, Eye, EyeOff } from 'lucide-react';
@@ -13,6 +13,10 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState('');
 
+  useEffect(() => {
+    clearError();
+  }, [clearError]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError('');
@@ -24,8 +28,10 @@ export default function RegisterPage() {
       setLocalError('Password must be at least 6 characters');
       return;
     }
-    await register(email, password, username || undefined);
-    if (!error) navigate('/');
+    const success = await register(email, password, username || undefined);
+    if (success) {
+      navigate(`/verify-email-otp?email=${encodeURIComponent(email.trim())}&from=register`);
+    }
   };
 
   const displayError = localError || error;
@@ -155,6 +161,10 @@ export default function RegisterPage() {
             <Link to="/login" className="font-medium text-black hover:underline">
               Sign in
             </Link>
+          </p>
+
+          <p className="text-center text-xs text-gray-500 mt-2">
+            After registering, you will verify your email with OTP before first login.
           </p>
         </div>
       </div>

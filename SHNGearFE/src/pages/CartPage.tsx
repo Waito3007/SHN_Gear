@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cartApi } from '../api/cart';
+import { addressApi } from '../api/address';
 import { useAuth } from '../context/AuthContext';
-import type { CartDto } from '../types';
+import type { AddressDto, CartDto } from '../types';
 import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft } from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import { animateFlyToCart, bumpCartIcon } from '../utils/cartAnimation';
 
 function formatPrice(price: number, currency = 'VND') {
   const locale = currency === 'VND' ? 'vi-VN' : 'en-US';
@@ -12,10 +15,13 @@ function formatPrice(price: number, currency = 'VND') {
 
 export default function CartPage() {
   const { isAuthenticated } = useAuth();
+  const { syncCartCountFromCart } = useCart();
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartDto | null>(null);
+  const [defaultAddress, setDefaultAddress] = useState<AddressDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -27,25 +33,62 @@ export default function CartPage() {
 
   const fetchCart = async () => {
     setLoading(true);
+    setActionError(null);
     try {
       const res = await cartApi.getCart();
       setCart(res.data.data);
+      syncCartCountFromCart(res.data.data);
     } catch (error) {
       console.error('Failed to fetch cart:', error);
+      setActionError('Could not load your cart. Please refresh or sign in again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateQuantity = async (variantId: string, newQuantity: number) => {
+  const fetchDefaultAddress = async () => {
+    try {
+      const res = await addressApi.getMyAddresses();
+      const addresses = res.data.data || [];
+      const preferred = addresses.find((item) => item.isDefault) || addresses[0] || null;
+      setDefaultAddress(preferred);
+    } catch {
+      setDefaultAddress(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    fetchDefaultAddress();
+  }, [isAuthenticated]);
+
+  const handleUpdateQuantity = async (
+    variantId: string,
+    newQuantity: number,
+    sourceEl?: HTMLElement | null,
+    fallbackText?: string,
+    previousQuantity?: number
+  ) => {
     if (newQuantity < 1 || newQuantity > 99) return;
     
     setUpdating(variantId);
+    setActionError(null);
     try {
       const res = await cartApi.updateItem(variantId, { quantity: newQuantity });
       setCart(res.data.data);
+      syncCartCountFromCart(res.data.data);
+
+      if ((previousQuantity ?? 0) < newQuantity) {
+        animateFlyToCart({ fromElement: sourceEl ?? null, fallbackText: fallbackText || 'P' });
+      } else if ((previousQuantity ?? 0) > newQuantity) {
+        bumpCartIcon();
+      }
     } catch (error) {
       console.error('Failed to update cart:', error);
+      setActionError('Could not update item quantity. Please try again.');
     } finally {
       setUpdating(null);
     }
@@ -53,11 +96,15 @@ export default function CartPage() {
 
   const handleRemoveItem = async (variantId: string) => {
     setUpdating(variantId);
+    setActionError(null);
     try {
       const res = await cartApi.removeItem(variantId);
       setCart(res.data.data);
+      syncCartCountFromCart(res.data.data);
+      bumpCartIcon();
     } catch (error) {
       console.error('Failed to remove item:', error);
+      setActionError('Could not remove this item from your cart.');
     } finally {
       setUpdating(null);
     }
@@ -67,6 +114,7 @@ export default function CartPage() {
     if (!confirm('Are you sure you want to clear your cart?')) return;
     
     setLoading(true);
+    setActionError(null);
     try {
       await cartApi.clearCart();
       setCart((prev) => ({
@@ -76,8 +124,17 @@ export default function CartPage() {
         totalItems: 0,
         updatedAt: new Date().toISOString(),
       }));
+      syncCartCountFromCart({
+        accountId: '',
+        items: [],
+        totalAmount: 0,
+        totalItems: 0,
+        updatedAt: new Date().toISOString(),
+      });
+      bumpCartIcon();
     } catch (error) {
       console.error('Failed to clear cart:', error);
+      setActionError('Could not clear cart. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -130,6 +187,12 @@ export default function CartPage() {
         )}
       </div>
 
+      {actionError && (
+        <div className="mb-6 p-3 rounded-xl border border-red-200 bg-red-50 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
@@ -168,7 +231,15 @@ export default function CartPage() {
 
                   <div className="flex items-center border border-gray-300 rounded-lg">
                     <button
-                      onClick={() => handleUpdateQuantity(item.productVariantId, item.quantity - 1)}
+                      onClick={(e) =>
+                        handleUpdateQuantity(
+                          item.productVariantId,
+                          item.quantity - 1,
+                          e.currentTarget,
+                          item.productName.charAt(0),
+                          item.quantity
+                        )
+                      }
                       disabled={updating === item.productVariantId || item.quantity <= 1}
                       className="p-1.5 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
@@ -178,7 +249,15 @@ export default function CartPage() {
                       {item.quantity}
                     </span>
                     <button
-                      onClick={() => handleUpdateQuantity(item.productVariantId, item.quantity + 1)}
+                      onClick={(e) =>
+                        handleUpdateQuantity(
+                          item.productVariantId,
+                          item.quantity + 1,
+                          e.currentTarget,
+                          item.productName.charAt(0),
+                          item.quantity
+                        )
+                      }
                       disabled={updating === item.productVariantId || item.quantity >= 99 || item.quantity >= item.availableStock}
                       className="p-1.5 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     >
@@ -201,6 +280,29 @@ export default function CartPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
             
             <div className="space-y-3 mb-6">
+              <div className="bg-white border border-gray-200 rounded-xl p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold text-gray-900">Delivery Address</span>
+                  <Link to="/profile" className="text-xs font-medium text-black hover:underline">
+                    Manage
+                  </Link>
+                </div>
+                {defaultAddress ? (
+                  <div className="mt-2 text-xs text-gray-600 space-y-1">
+                    <p className="font-medium text-gray-800">
+                      {defaultAddress.recipientName} - {defaultAddress.phoneNumber}
+                    </p>
+                    <p>
+                      {defaultAddress.street}, {defaultAddress.ward}, {defaultAddress.district}, {defaultAddress.province}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                    No delivery address found. Add one in profile to proceed checkout.
+                  </p>
+                )}
+              </div>
+
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">Subtotal</span>
                 <span className="font-semibold">{formatPrice(cart.totalAmount, cart.items[0]?.currency ?? 'VND')}</span>
@@ -217,7 +319,11 @@ export default function CartPage() {
               </div>
             </div>
 
-            <button className="w-full gradient-btn text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all hover:shadow-lg mb-3">
+            <button
+              onClick={() => navigate('/checkout')}
+              disabled={!defaultAddress}
+              className="w-full gradient-btn text-white px-6 py-3 rounded-xl font-semibold text-sm transition-all hover:shadow-lg mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Proceed to Checkout
             </button>
 

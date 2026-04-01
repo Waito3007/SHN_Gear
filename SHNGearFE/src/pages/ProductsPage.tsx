@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { productApi } from '../api/product';
 import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 import type { ProductListItem, PagedResult } from '../types';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -14,7 +14,7 @@ export default function ProductsPage() {
   useEffect(() => {
     setLoading(true);
     productApi
-      .getPaged(page, 12)
+      .getPagedWithImages(page, 12)
       .then((res) => {
         setData(res.data);
       })
@@ -58,43 +58,14 @@ export default function ProductsPage() {
           </div>
 
           {/* Pagination */}
-          {data.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-12">
-              <button
-                disabled={page <= 1}
-                onClick={() => goToPage(page - 1)}
-                className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              {Array.from({ length: data.totalPages }, (_, i) => i + 1)
-                .filter((p) => Math.abs(p - page) <= 2 || p === 1 || p === data.totalPages)
-                .map((p, idx, arr) => (
-                  <span key={p}>
-                    {idx > 0 && arr[idx - 1] !== p - 1 && (
-                      <span className="px-1 text-gray-400">...</span>
-                    )}
-                    <button
-                      onClick={() => goToPage(p)}
-                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
-                        p === page
-                          ? 'bg-black text-white'
-                          : 'border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  </span>
-                ))}
-              <button
-                disabled={page >= data.totalPages}
-                onClick={() => goToPage(page + 1)}
-                className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
+          <Pagination
+            currentPage={page}
+            totalPages={data.totalPages}
+            hasPreviousPage={data.hasPreviousPage}
+            hasNextPage={data.hasNextPage}
+            onPageChange={goToPage}
+            loading={loading}
+          />
         </>
       ) : (
         <div className="text-center py-20">

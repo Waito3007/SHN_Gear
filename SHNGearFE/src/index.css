@@ -31,3 +31,19 @@ body {
 .gradient-btn:hover {
   background: linear-gradient(135deg, #1f2937 0%, #4b5563 100%);
 }
+
+@keyframes cart-bump {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.18);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cart-bump {
+  animation: cart-bump 0.45s ease;
+}

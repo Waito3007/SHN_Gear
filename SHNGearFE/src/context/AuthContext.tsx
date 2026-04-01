@@ -1,13 +1,15 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { AccountDto } from '../types';
 import { authApi } from '../api/auth';
+import { accountApi } from '../api/account';
 
 interface AuthContextType {
   user: AccountDto | null;
   isAuthenticated: boolean;
-  login: (emailOrUsername: string, password: string) => Promise<void>;
-  register: (email: string, password: string, username?: string) => Promise<void>;
+  login: (emailOrUsername: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, username?: string) => Promise<boolean>;
   logout: () => Promise<void>;
+  refreshCurrentUser: () => Promise<void>;
   loading: boolean;
   error: string | null;
   clearError: () => void;
@@ -38,14 +40,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('refreshToken', refreshToken);
         localStorage.setItem('user', JSON.stringify(account));
         setUser(account);
+        return true;
       } else {
         setError(res.data.message || 'Login failed');
+        return false;
       }
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         'Login failed. Please try again.';
       setError(msg);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -57,19 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await authApi.register({ email, password, username });
       if (res.data.success) {
-        const { accessToken, refreshToken, account } = res.data.data;
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        localStorage.setItem('user', JSON.stringify(account));
-        setUser(account);
+        // Registration now requires explicit OTP confirmation before normal login.
+        return true;
       } else {
         setError(res.data.message || 'Registration failed');
+        return false;
       }
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         'Registration failed. Please try again.';
       setError(msg);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -85,6 +89,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const refreshCurrentUser = async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      return;
+    }
+
+    try {
+      const res = await accountApi.getMyProfile();
+      if (res.data.success) {
+        localStorage.setItem('user', JSON.stringify(res.data.data));
+        setUser(res.data.data);
+      }
+    } catch {
+      // Keep existing user data on transient refresh errors.
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -93,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        refreshCurrentUser,
         loading,
         error,
         clearError: () => setError(null),

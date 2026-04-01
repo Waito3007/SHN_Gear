@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { productApi } from '../api/product';
 import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 import type { ProductListItem, PagedResult } from '../types';
 import { Search as SearchIcon } from 'lucide-react';
 
@@ -17,7 +18,7 @@ export default function SearchPage() {
     if (!q) return;
     setLoading(true);
     productApi
-      .search({ searchTerm: q, page, pageSize: 12 })
+      .searchWithImages({ searchTerm: q, page, pageSize: 12 })
       .then((res) => {
         setData(res.data);
       })
@@ -30,6 +31,11 @@ export default function SearchPage() {
     if (searchTerm.trim()) {
       setSearchParams({ q: searchTerm.trim(), page: '1' });
     }
+  };
+
+  const goToPage = (p: number) => {
+    setSearchParams({ q, page: String(p) });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -92,6 +98,18 @@ export default function SearchPage() {
           <p className="text-gray-400 text-lg">No products match your search.</p>
         </div>
       ) : null}
+
+      {/* Pagination */}
+      {data && data.totalPages > 1 && (
+        <Pagination
+          currentPage={page}
+          totalPages={data.totalPages}
+          hasPreviousPage={data.hasPreviousPage}
+          hasNextPage={data.hasNextPage}
+          onPageChange={goToPage}
+          loading={loading}
+        />
+      )}
     </div>
   );
 }

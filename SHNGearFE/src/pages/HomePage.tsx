@@ -4,14 +4,16 @@ import { ArrowRight, Zap, Shield, Truck } from 'lucide-react';
 import { productApi } from '../api/product';
 import ProductCard from '../components/ProductCard';
 import type { ProductListItem } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 export default function HomePage() {
+  const { isAuthenticated } = useAuth();
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     productApi
-      .getPaged(1, 8)
+      .getPagedWithImages(1, 8)
       .then((res) => {
         setProducts(res.data.items);
       })
@@ -45,10 +47,10 @@ export default function HomePage() {
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                to="/register"
+                to={isAuthenticated ? '/cart' : '/register'}
                 className="inline-flex items-center gap-2 border border-white/30 text-white px-6 py-3 rounded-full font-semibold text-sm hover:bg-white/10 transition-colors"
               >
-                Create Account
+                {isAuthenticated ? 'Go to Cart' : 'Create Account'}
               </Link>
             </div>
           </div>
@@ -154,16 +156,18 @@ export default function HomePage() {
       <section className="bg-gray-50 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-            Ready to get started?
+            {isAuthenticated ? 'Ready to checkout?' : 'Ready to get started?'}
           </h2>
           <p className="text-gray-500 mt-3 max-w-md mx-auto">
-            Create an account today and get access to exclusive deals and early product drops.
+            {isAuthenticated
+              ? 'Your cart and latest products are waiting. Complete your order in just a few steps.'
+              : 'Create an account today and get access to exclusive deals and early product drops.'}
           </p>
           <Link
-            to="/register"
+            to={isAuthenticated ? '/cart' : '/register'}
             className="mt-6 inline-flex items-center gap-2 gradient-btn text-white px-8 py-3 rounded-full font-semibold text-sm transition-all hover:shadow-xl"
           >
-            Sign Up Now <ArrowRight className="w-4 h-4" />
+            {isAuthenticated ? 'View Cart' : 'Sign Up Now'} <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </section>

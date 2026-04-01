@@ -4,6 +4,10 @@ import type {
   LoginRequest,
   LoginResponse,
   RegisterRequest,
+  ResetForgotPasswordRequest,
+  SendOtpRequest,
+  VerifyForgotPasswordOtpResponse,
+  VerifyOtpRequest,
 } from '../types';
 
 export const authApi = {
@@ -20,4 +24,19 @@ export const authApi = {
       accessToken,
       refreshToken,
     }),
+
+  sendVerificationOtp: (data: SendOtpRequest) =>
+    api.post<ApiResponse<{ message: string }>>('/Auth/send-verification-otp', data),
+
+  verifyEmailOtp: (data: VerifyOtpRequest) =>
+    api.post<ApiResponse<{ message: string }>>('/Auth/verify-email-otp', data),
+
+  sendForgotPasswordOtp: (data: SendOtpRequest) =>
+    api.post<ApiResponse<{ message: string }>>('/Auth/forgot-password/send-otp', data),
+
+  verifyForgotPasswordOtp: (data: VerifyOtpRequest) =>
+    api.post<ApiResponse<VerifyForgotPasswordOtpResponse>>('/Auth/forgot-password/verify-otp', data),
+
+  resetForgotPassword: (data: ResetForgotPasswordRequest) =>
+    api.post<ApiResponse<{ message: string }>>('/Auth/forgot-password/reset', data),
 };
