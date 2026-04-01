@@ -122,10 +122,32 @@ public static class ServiceCollectionExtensions
 
         // Payment strategies (Strategy pattern)
         services.AddScoped<IPaymentStrategy, CodPaymentStrategy>();
+        services.AddScoped<IPaymentStrategy, PayPalPaymentStrategy>();
         services.AddScoped<IPaymentStrategyResolver, PaymentStrategyResolver>();
 
         // Media services (Cloudinary)
         services.AddScoped<IImageStorageService, CloudinaryImageStorageService>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddPayPalSettings(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<PayPalSettings>(configuration.GetSection(PayPalSettings.SectionName));
+
+        services.AddHttpClient<IPayPalGatewayService, PayPalGatewayService>((serviceProvider, client) =>
+        {
+            var settings = serviceProvider
+                .GetRequiredService<Microsoft.Extensions.Options.IOptions<PayPalSettings>>()
+                .Value;
+
+            var baseUrl = string.IsNullOrWhiteSpace(settings.BaseUrl)
+                ? "https://api-m.sandbox.paypal.com"
+                : settings.BaseUrl;
+
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(settings.HttpTimeoutSeconds <= 0 ? 20 : settings.HttpTimeoutSeconds);
+        });
 
         return services;
     }

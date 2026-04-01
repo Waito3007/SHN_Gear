@@ -7,10 +7,14 @@ using SHNGearBE.Models.DTOs.Order;
 using SHNGearBE.Models.Enums;
 using SHNGearBE.Models.Exceptions;
 using SHNGearBE.Repositorys.Interface.Address;
+using SHNGearBE.Repositorys.Interface.Account;
 using SHNGearBE.Repositorys.Interface.Order;
 using SHNGearBE.Services.Interfaces.Cart;
 using SHNGearBE.Services.Interfaces.Order;
 using SHNGearBE.UnitOfWork;
+using SHNGearMailService.Abstractions;
+using SHNGearMailService.Models;
+using System.Globalization;
 using OrderEntity = SHNGearBE.Models.Entities.Order.Order;
 using OrderItemEntity = SHNGearBE.Models.Entities.Order.OrderItem;
 
@@ -19,29 +23,114 @@ namespace SHNGearBE.Services.Order;
 public class OrderService : IOrderService
 {
     private readonly IOrderRepository _orderRepository;
+    private readonly IAccountRepository _accountRepository;
     private readonly IAddressRepository _addressRepository;
     private readonly ICartService _cartService;
     private readonly IPaymentStrategyResolver _paymentStrategyResolver;
+    private readonly IPayPalGatewayService _payPalGatewayService;
+    private readonly IEmailService _emailService;
+    private readonly IEmailTemplateRenderer _emailTemplateRenderer;
     private readonly ApplicationDbContext _context;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogService<OrderService> _logService;
 
     public OrderService(
         IOrderRepository orderRepository,
+        IAccountRepository accountRepository,
         IAddressRepository addressRepository,
         ICartService cartService,
         IPaymentStrategyResolver paymentStrategyResolver,
+        IPayPalGatewayService payPalGatewayService,
+        IEmailService emailService,
+        IEmailTemplateRenderer emailTemplateRenderer,
         ApplicationDbContext context,
         IUnitOfWork unitOfWork,
         ILogService<OrderService> logService)
     {
         _orderRepository = orderRepository;
+        _accountRepository = accountRepository;
         _addressRepository = addressRepository;
         _cartService = cartService;
         _paymentStrategyResolver = paymentStrategyResolver;
+        _payPalGatewayService = payPalGatewayService;
+        _emailService = emailService;
+        _emailTemplateRenderer = emailTemplateRenderer;
         _context = context;
         _unitOfWork = unitOfWork;
         _logService = logService;
+    }
+
+    public async Task<CreatePayPalOrderResponse> CreatePayPalOrderAsync(Guid accountId, CancellationToken cancellationToken = default)
+    {
+        var cart = await _cartService.GetCartAsync(accountId, cancellationToken);
+        if (cart.Items.Count == 0)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "Gio hang trong");
+        }
+
+        var referenceId = accountId.ToString("N", CultureInfo.InvariantCulture);
+        var createOrderResult = await _payPalGatewayService.CreateOrderAsync(cart.TotalAmount, referenceId, cancellationToken);
+
+        return new CreatePayPalOrderResponse
+        {
+            OrderId = createOrderResult.OrderId,
+            CurrencyCode = createOrderResult.CurrencyCode,
+            AmountUsd = createOrderResult.AmountUsd,
+            AppliedVndPerUsdRate = createOrderResult.AppliedVndPerUsdRate,
+            UsedFallbackRate = createOrderResult.UsedFallbackRate
+        };
+    }
+
+    public Task<PayPalClientConfigResponse> GetPayPalClientConfigAsync(CancellationToken cancellationToken = default)
+    {
+        var response = new PayPalClientConfigResponse
+        {
+            ClientId = _payPalGatewayService.GetClientId(),
+            CurrencyCode = _payPalGatewayService.GetCurrencyCode()
+        };
+
+        return Task.FromResult(response);
+    }
+
+    public async Task ProcessPayPalWebhookAsync(string eventType, string? captureId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(captureId) || string.IsNullOrWhiteSpace(eventType))
+        {
+            return;
+        }
+
+        var order = await _context.Orders
+            .Where(o => !o.IsDelete && o.PaymentProvider == PaymentProvider.PayPal && o.PaymentTransactionId == captureId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (order == null)
+        {
+            await _logService.WriteMessageAsync($"PayPal webhook ignored: no order for capture {captureId}");
+            return;
+        }
+
+        if (string.Equals(eventType, "PAYMENT.CAPTURE.COMPLETED", StringComparison.OrdinalIgnoreCase))
+        {
+            order.PaymentStatus = PaymentStatus.Completed;
+            order.PaidAt ??= DateTime.UtcNow;
+        }
+        else if (string.Equals(eventType, "PAYMENT.CAPTURE.REFUNDED", StringComparison.OrdinalIgnoreCase))
+        {
+            order.PaymentStatus = PaymentStatus.Refunded;
+        }
+        else if (string.Equals(eventType, "PAYMENT.CAPTURE.DENIED", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(eventType, "PAYMENT.CAPTURE.DECLINED", StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(eventType, "PAYMENT.CAPTURE.REVERSED", StringComparison.OrdinalIgnoreCase))
+        {
+            order.PaymentStatus = PaymentStatus.Failed;
+        }
+        else
+        {
+            return;
+        }
+
+        order.UpdateAt = DateTime.UtcNow;
+        await _unitOfWork.SaveAsync();
     }
 
     public async Task<OrderResponse> CreateOrderAsync(Guid accountId, CreateOrderRequest request, CancellationToken cancellationToken = default)
@@ -144,12 +233,80 @@ public class OrderService : IOrderService
             await _cartService.ClearCartAsync(accountId);
             await _logService.WriteMessageAsync($"Order created: {order.Id} - Account: {accountId}");
 
+            await TrySendOrderPlacedEmailAsync(accountId, order, address, cancellationToken);
+
             return MapToResponse(order);
         }
         catch
         {
             await _unitOfWork.RollbackAsync();
             throw;
+        }
+    }
+
+    private async Task TrySendOrderPlacedEmailAsync(Guid accountId, OrderEntity order, SHNGearBE.Models.Entities.Account.Address deliveryAddress, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var account = await _accountRepository.GetAccountWithDetailsAsync(accountId);
+            if (account == null || string.IsNullOrWhiteSpace(account.Email))
+            {
+                return;
+            }
+
+            var recipientName = account.AccountDetail?.Name
+                                ?? account.AccountDetail?.FirstName
+                                ?? account.Username
+                                ?? account.Email;
+
+            var template = _emailTemplateRenderer.RenderOrderPlacedTemplate(new OrderPlacedEmailTemplateData
+            {
+                AppName = "SHNGear",
+                RecipientName = recipientName,
+                OrderCode = order.Code,
+                CreatedAtUtc = order.CreateAt,
+                PaymentMethod = order.PaymentProvider.ToString(),
+                PaymentStatus = order.PaymentStatus.ToString(),
+                SubTotal = order.SubTotal,
+                ShippingFee = order.ShippingFee,
+                TotalAmount = order.TotalAmount,
+                CurrencyCode = "VND",
+                DeliveryAddress = $"{deliveryAddress.Street}, {deliveryAddress.Ward}, {deliveryAddress.District}, {deliveryAddress.Province}",
+                SupportEmail = "shngearvn@gmail.com",
+                Items = order.Items.Select(i => new OrderPlacedEmailItem
+                {
+                    ProductName = i.ProductNameSnapshot,
+                    VariantName = i.VariantNameSnapshot,
+                    Sku = i.SkuSnapshot,
+                    Quantity = i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    SubTotal = i.SubTotal
+                }).ToList()
+            });
+
+            var sendResult = await _emailService.SendAsync(new EmailMessage
+            {
+                Subject = template.Subject,
+                Body = template.HtmlBody,
+                IsHtml = true,
+                To =
+                {
+                    new EmailAddress
+                    {
+                        Address = account.Email,
+                        DisplayName = recipientName
+                    }
+                }
+            }, cancellationToken);
+
+            if (!sendResult.Success)
+            {
+                await _logService.WriteMessageAsync($"Order email send failed for order {order.Id}: {sendResult.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await _logService.WriteExceptionAsync(ex);
         }
     }
 
@@ -190,21 +347,13 @@ public class OrderService : IOrderService
         }
 
         await _unitOfWork.BeginTransactionAsync();
+        RefundSummary? refundSummary = null;
         try
         {
-            var variantIds = order.Items.Select(i => i.ProductVariantId).Distinct().ToList();
-            var variants = await _context.ProductVariants
-                .Where(v => variantIds.Contains(v.Id))
-                .ToDictionaryAsync(v => v.Id, cancellationToken);
+            await RestoreStockAsync(order, cancellationToken);
 
-            foreach (var item in order.Items)
-            {
-                if (variants.TryGetValue(item.ProductVariantId, out var variant))
-                {
-                    variant.Quantity += item.Quantity;
-                    variant.UpdateAt = DateTime.UtcNow;
-                }
-            }
+            var shouldAutoRefund = ShouldAutoRefundOnCancel(order.Status);
+            refundSummary = await RefundPayPalIfNeededAsync(order, shouldAutoRefund, null, cancellationToken);
 
             order.Status = OrderStatus.Cancelled;
             order.CancelledAt = DateTime.UtcNow;
@@ -215,6 +364,11 @@ public class OrderService : IOrderService
             await _unitOfWork.CommitAsync();
 
             await _logService.WriteMessageAsync($"Order cancelled by customer: {order.Id} - Account: {accountId}");
+            if (refundSummary != null)
+            {
+                await TrySendRefundCompletedEmailAsync(accountId, order, refundSummary, reason, cancellationToken);
+            }
+
             return MapToResponse(order);
         }
         catch
@@ -222,6 +376,56 @@ public class OrderService : IOrderService
             await _unitOfWork.RollbackAsync();
             throw;
         }
+    }
+
+    public async Task<OrderResponse> ApproveRefundAsync(Guid orderId, decimal? amountUsd, string? reason, CancellationToken cancellationToken = default)
+    {
+        var order = await _orderRepository.GetByIdWithDetailsAsync(orderId, cancellationToken);
+        if (order == null)
+        {
+            throw new ProjectException(ResponseType.NotFound, "Don hang khong ton tai");
+        }
+
+        if (order.Status != OrderStatus.Cancelled)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "Chi duoc duyet hoan tien cho don da huy");
+        }
+
+        if (order.PaymentProvider != PaymentProvider.PayPal)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "Don hang khong su dung PayPal");
+        }
+
+        if (order.PaymentStatus == PaymentStatus.Refunded)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "Don hang da hoan tien truoc do");
+        }
+
+        if (order.PaymentStatus != PaymentStatus.Completed)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "Don hang chua thanh toan, khong the hoan tien");
+        }
+
+        var refundSummary = await RefundPayPalIfNeededAsync(order, true, amountUsd, cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(reason))
+        {
+            var normalizedReason = reason.Trim();
+            order.CancelledReason = string.IsNullOrWhiteSpace(order.CancelledReason)
+                ? normalizedReason
+                : $"{order.CancelledReason} | Refund note: {normalizedReason}";
+        }
+
+        await _orderRepository.UpdateAsync(order);
+        await _unitOfWork.SaveAsync();
+
+        await _logService.WriteMessageAsync($"Order refund approved by admin: {order.Id} - AmountUsd: {(amountUsd.HasValue ? amountUsd.Value.ToString("0.00", CultureInfo.InvariantCulture) : "FULL")}");
+        if (refundSummary != null)
+        {
+            await TrySendRefundCompletedEmailAsync(order.AccountId, order, refundSummary, reason, cancellationToken);
+        }
+
+        return MapToResponse(order);
     }
 
     public async Task<OrderResponse?> GetOrderByIdAsync(Guid orderId, CancellationToken cancellationToken = default)
@@ -255,19 +459,52 @@ public class OrderService : IOrderService
             throw new ProjectException(ResponseType.NotFound, "Don hang khong ton tai");
         }
 
+        if (order.Status == status)
+        {
+            return MapToResponse(order);
+        }
+
         if (!CanTransition(order.Status, status))
         {
             throw new ProjectException(ResponseType.BadRequest, "Khong the cap nhat trang thai theo luong hien tai");
         }
 
-        order.Status = status;
-        order.UpdateAt = DateTime.UtcNow;
-
         if (status == OrderStatus.Cancelled)
         {
-            order.CancelledAt = DateTime.UtcNow;
-            order.CancelledReason ??= "Admin huy don";
+            await _unitOfWork.BeginTransactionAsync();
+            RefundSummary? refundSummary = null;
+            try
+            {
+                await RestoreStockAsync(order, cancellationToken);
+
+                var shouldAutoRefund = ShouldAutoRefundOnCancel(order.Status);
+                refundSummary = await RefundPayPalIfNeededAsync(order, shouldAutoRefund, null, cancellationToken);
+
+                order.Status = OrderStatus.Cancelled;
+                order.UpdateAt = DateTime.UtcNow;
+                order.CancelledAt = DateTime.UtcNow;
+                order.CancelledReason ??= "Admin huy don";
+
+                await _orderRepository.UpdateAsync(order);
+                await _unitOfWork.CommitAsync();
+            }
+            catch
+            {
+                await _unitOfWork.RollbackAsync();
+                throw;
+            }
+
+            await _logService.WriteMessageAsync($"Order status updated: {order.Id} -> {status}");
+            if (refundSummary != null)
+            {
+                await TrySendRefundCompletedEmailAsync(order.AccountId, order, refundSummary, order.CancelledReason, cancellationToken);
+            }
+
+            return MapToResponse(order);
         }
+
+        order.Status = status;
+        order.UpdateAt = DateTime.UtcNow;
 
         await _orderRepository.UpdateAsync(order);
         await _unitOfWork.SaveAsync();
@@ -295,13 +532,136 @@ public class OrderService : IOrderService
         return status == OrderStatus.Pending || status == OrderStatus.Confirmed;
     }
 
-    private static bool CanTransition(OrderStatus from, OrderStatus to)
+    private static bool ShouldAutoRefundOnCancel(OrderStatus status)
     {
-        if (from == to)
+        return status == OrderStatus.Pending;
+    }
+
+    private async Task RestoreStockAsync(OrderEntity order, CancellationToken cancellationToken)
+    {
+        var variantIds = order.Items.Select(i => i.ProductVariantId).Distinct().ToList();
+        var variants = await _context.ProductVariants
+            .Where(v => variantIds.Contains(v.Id))
+            .ToDictionaryAsync(v => v.Id, cancellationToken);
+
+        foreach (var item in order.Items)
         {
-            return true;
+            if (variants.TryGetValue(item.ProductVariantId, out var variant))
+            {
+                variant.Quantity += item.Quantity;
+                variant.UpdateAt = DateTime.UtcNow;
+            }
+        }
+    }
+
+    private async Task<RefundSummary?> RefundPayPalIfNeededAsync(OrderEntity order, bool shouldRefund, decimal? amountUsd, CancellationToken cancellationToken)
+    {
+        if (!shouldRefund)
+        {
+            return null;
         }
 
+        if (order.PaymentProvider != PaymentProvider.PayPal || order.PaymentStatus != PaymentStatus.Completed)
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(order.PaymentTransactionId))
+        {
+            throw new ProjectException(ResponseType.BadRequest, "Khong tim thay ma giao dich PayPal de hoan tien");
+        }
+
+        if (amountUsd.HasValue && amountUsd.Value <= 0)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "So tien hoan phai lon hon 0");
+        }
+
+        var captureAmountResult = await _payPalGatewayService.GetCaptureAmountAsync(order.PaymentTransactionId, cancellationToken);
+        if (!captureAmountResult.Success || !captureAmountResult.AmountUsd.HasValue)
+        {
+            throw new ProjectException(ResponseType.BadRequest, captureAmountResult.ErrorMessage ?? "Khong lay duoc tong so tien giao dich PayPal");
+        }
+
+        if (amountUsd.HasValue && amountUsd.Value > captureAmountResult.AmountUsd.Value)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "So tien hoan vuot qua tong so tien da thanh toan");
+        }
+
+        var refundResult = await _payPalGatewayService.RefundCaptureAsync(order.PaymentTransactionId, amountUsd, cancellationToken);
+        if (!refundResult.Success)
+        {
+            throw new ProjectException(ResponseType.BadRequest, refundResult.ErrorMessage ?? "Hoan tien PayPal that bai");
+        }
+
+        var refundedAmount = refundResult.RefundedAmountUsd ?? amountUsd ?? captureAmountResult.AmountUsd.Value;
+        var totalCapturedAmount = captureAmountResult.AmountUsd.Value;
+        if (refundedAmount >= totalCapturedAmount)
+        {
+            order.PaymentStatus = PaymentStatus.Refunded;
+        }
+
+        order.UpdateAt = DateTime.UtcNow;
+        return new RefundSummary(refundedAmount, totalCapturedAmount, captureAmountResult.CurrencyCode);
+    }
+
+    private async Task TrySendRefundCompletedEmailAsync(Guid accountId, OrderEntity order, RefundSummary refundSummary, string? reason, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var account = await _accountRepository.GetAccountWithDetailsAsync(accountId);
+            if (account == null || string.IsNullOrWhiteSpace(account.Email))
+            {
+                return;
+            }
+
+            var recipientName = account.AccountDetail?.Name
+                                ?? account.AccountDetail?.FirstName
+                                ?? account.Username
+                                ?? account.Email;
+
+            var template = _emailTemplateRenderer.RenderRefundCompletedTemplate(new RefundCompletedEmailTemplateData
+            {
+                AppName = "SHNGear",
+                RecipientName = recipientName,
+                OrderCode = order.Code,
+                RefundedAtUtc = DateTime.UtcNow,
+                RefundedAmount = refundSummary.RefundedAmountUsd,
+                TotalCapturedAmount = refundSummary.TotalCapturedAmountUsd,
+                CurrencyCode = refundSummary.CurrencyCode,
+                RefundReason = string.IsNullOrWhiteSpace(reason) ? order.CancelledReason : reason,
+                SupportEmail = "shngearvn@gmail.com"
+            });
+
+            var sendResult = await _emailService.SendAsync(new EmailMessage
+            {
+                Subject = template.Subject,
+                Body = template.HtmlBody,
+                IsHtml = true,
+                To =
+                {
+                    new EmailAddress
+                    {
+                        Address = account.Email,
+                        DisplayName = recipientName
+                    }
+                }
+            }, cancellationToken);
+
+            if (!sendResult.Success)
+            {
+                await _logService.WriteMessageAsync($"Refund email send failed for order {order.Id}: {sendResult.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            await _logService.WriteExceptionAsync(ex);
+        }
+    }
+
+    private sealed record RefundSummary(decimal RefundedAmountUsd, decimal TotalCapturedAmountUsd, string CurrencyCode);
+
+    private static bool CanTransition(OrderStatus from, OrderStatus to)
+    {
         if (from == OrderStatus.Cancelled || from == OrderStatus.Delivered)
         {
             return false;
