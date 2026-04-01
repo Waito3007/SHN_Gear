@@ -14,8 +14,13 @@ export default function ProtectedRoute({
   permission, 
   requireAdmin = false 
 }: ProtectedRouteProps) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitialized } = useAuth();
   const { hasPermission, isAdmin } = usePermission();
+
+  // Wait for auth initialization to complete
+  if (!isInitialized) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

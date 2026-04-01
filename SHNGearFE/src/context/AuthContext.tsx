@@ -6,6 +6,7 @@ import { accountApi } from '../api/account';
 interface AuthContextType {
   user: AccountDto | null;
   isAuthenticated: boolean;
+  isInitialized: boolean;
   login: (emailOrUsername: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, username?: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -21,12 +22,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AccountDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    // Restore auth state from localStorage on app load
     const stored = localStorage.getItem('user');
-    if (stored) {
-      try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
+    const token = localStorage.getItem('accessToken');
+    if (stored && token) {
+      try { 
+        setUser(JSON.parse(stored)); 
+      } catch { 
+        // If parse fails, clear invalid data
+        localStorage.removeItem('user');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      }
     }
+    setIsInitialized(true);
   }, []);
 
   const login = async (emailOrUsername: string, password: string) => {
@@ -111,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user,
+        isInitialized,
         login,
         register,
         logout,
