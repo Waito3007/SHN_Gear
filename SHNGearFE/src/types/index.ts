@@ -169,7 +169,7 @@ export interface UpdateCartItemRequest {
 }
 
 export type OrderStatus = 0 | 1 | 2 | 3 | 4 | 5;
-export type PaymentProvider = 0 | 1 | 2;
+export type PaymentProvider = 0 | 1 | 2 | 3;
 export type PaymentStatus = 0 | 1 | 2 | 3;
 
 export interface CreateOrderRequest {
@@ -177,6 +177,19 @@ export interface CreateOrderRequest {
   paymentProvider: PaymentProvider;
   paymentToken?: string;
   note?: string;
+}
+
+export interface PayPalClientConfigResponse {
+  clientId: string;
+  currencyCode: string;
+}
+
+export interface CreatePayPalOrderResponse {
+  orderId: string;
+  currencyCode: string;
+  amountUsd: number;
+  appliedVndPerUsdRate: number;
+  usedFallbackRate: boolean;
 }
 
 export interface OrderItemResponse {
