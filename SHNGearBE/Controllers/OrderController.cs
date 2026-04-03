@@ -1,6 +1,7 @@
 using BackgroundLogService.Abstractions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using SHNGearBE.Helpers.Attributes;
 using SHNGearBE.Infrastructure.Payment;
 using SHNGearBE.Models.DTOs.Order;
@@ -46,6 +47,11 @@ public class OrderController : ControllerBase
             if (accountId == null)
             {
                 return Unauthorized(new ApiResponse(ResponseType.Unauthorized));
+            }
+
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                return BadRequest(new ApiResponse(ResponseType.InvalidData, "Idempotency key is required"));
             }
 
             var order = await _orderService.CreateOrderAsync(accountId.Value, request, cancellationToken);
@@ -111,6 +117,7 @@ public class OrderController : ControllerBase
     [HttpPost("paypal/webhook")]
     [HttpPost("/api/webhooks/paypal")]
     [AllowAnonymous]
+    [EnableRateLimiting("PayPalWebhook")]
     public async Task<IActionResult> PayPalWebhook(CancellationToken cancellationToken)
     {
         try
@@ -125,7 +132,7 @@ public class OrderController : ControllerBase
             }
 
             var notification = await _payPalGatewayService.ParseWebhookAsync(webhookEvent, cancellationToken);
-            await _orderService.ProcessPayPalWebhookAsync(notification.EventType, notification.CaptureId, cancellationToken);
+            await _orderService.ProcessPayPalWebhookAsync(notification.EventId, notification.EventType, notification.CaptureId, cancellationToken);
 
             return Ok(new ApiResponse(new { received = true }));
         }

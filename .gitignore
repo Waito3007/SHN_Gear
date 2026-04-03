@@ -38,17 +38,10 @@ obj/
 *.tlog
 
 # Docker
-**/Dockerfile
-**/docker-compose.yml
-**/.dockerignore
+# Keep Dockerfile/compose tracked in repository.
 
-# Sensitive configuration files
-**/appsettings.json
-**/appsettings.Development.json
+# Sensitive local configuration
 **/launchSettings.json
-
-# Entity Framework Migrations
-**/Migrations/
 
 # Ignore generated files by Rider
 .idea/

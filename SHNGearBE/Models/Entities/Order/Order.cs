@@ -9,6 +9,7 @@ public class Order : BaseEntity
     public Guid Id { get; set; }
     public Guid AccountId { get; set; }
     public Guid DeliveryAddressId { get; set; }
+    public string? IdempotencyKey { get; set; }
 
     public string Code { get; set; } = null!;
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
@@ -28,4 +29,6 @@ public class Order : BaseEntity
     public virtual AccountEntity Account { get; set; } = null!;
     public virtual Address DeliveryAddress { get; set; } = null!;
     public virtual ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+    public virtual ICollection<RefundRecord> RefundRecords { get; set; } = new List<RefundRecord>();
+    public virtual ICollection<WebhookEvent> WebhookEvents { get; set; } = new List<WebhookEvent>();
 }

@@ -8,6 +8,7 @@ public class CreateOrderRequest
     public PaymentProvider PaymentProvider { get; set; } = PaymentProvider.Cod;
     public string? PaymentToken { get; set; }
     public string? Note { get; set; }
+    public string? IdempotencyKey { get; set; }
 }
 
 public class UpdateOrderStatusRequest

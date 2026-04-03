@@ -92,6 +92,8 @@ services:
       - PayPal__ExchangeRateApiKey=${EXCHANGE_RATE_API_KEY:-}
       - PayPal__FallbackVndPerUsdRate=${PAYPAL_FALLBACK_VND_PER_USD_RATE:-25500}
       - PayPal__HttpTimeoutSeconds=${PAYPAL_HTTP_TIMEOUT_SECONDS:-20}
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGIN_1:-http://localhost:3000}
+      - Cors__AllowedOrigins__1=${CORS_ALLOWED_ORIGIN_2:-http://localhost:5173}
     depends_on:
       db:
         condition: service_healthy

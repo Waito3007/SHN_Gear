@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using SHNGearBE.Data;
 
@@ -6,7 +7,7 @@ namespace SHNGearBE.UnitOfWork;
 public class UnitOfWork : IUnitOfWork, IDisposable
 {
     private readonly ApplicationDbContext _context;
-    private IDbContextTransaction _contextTransaction;
+    private IDbContextTransaction? _contextTransaction;
     private bool _dispose = false;
 
     public UnitOfWork(ApplicationDbContext context)
@@ -38,6 +39,7 @@ public class UnitOfWork : IUnitOfWork, IDisposable
     public async Task BeginTransactionAsync()
     {
         _contextTransaction = await _context.Database.BeginTransactionAsync();
+        await _context.Database.ExecuteSqlRawAsync("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
     }
 
     public async Task CommitAsync()

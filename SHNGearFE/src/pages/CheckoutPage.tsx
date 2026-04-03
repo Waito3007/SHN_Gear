@@ -26,9 +26,22 @@ function formatPrice(price: number, currency = 'VND') {
   return new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }).format(price);
 }
 
+function getCheckoutIdempotencyKey() {
+  const storageKey = 'checkout:idempotencyKey';
+  const existingKey = sessionStorage.getItem(storageKey);
+  if (existingKey) {
+    return existingKey;
+  }
+
+  const generatedKey = crypto.randomUUID();
+  sessionStorage.setItem(storageKey, generatedKey);
+  return generatedKey;
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const payPalContainerRef = useRef<HTMLDivElement | null>(null);
+  const idempotencyKeyRef = useRef<string>(getCheckoutIdempotencyKey());
   const [payPalScriptReady, setPayPalScriptReady] = useState(false);
   const [payPalClientId, setPayPalClientId] = useState('');
   const [payPalCurrencyCode, setPayPalCurrencyCode] = useState('USD');
@@ -118,6 +131,7 @@ export default function CheckoutPage() {
         paymentProvider: provider,
         paymentToken,
         note: note.trim() || undefined,
+        idempotencyKey: idempotencyKeyRef.current,
       });
 
       const createdOrder = res.data.data;
@@ -129,8 +143,10 @@ export default function CheckoutPage() {
 
       if (provider === PAYPAL_PROVIDER) {
         const checkoutStatus = createdOrder.paymentStatus === 1 ? 'success' : 'pending';
+        sessionStorage.removeItem('checkout:idempotencyKey');
         navigate(`/payment-result?status=${checkoutStatus}&orderId=${createdOrder.id}`);
       } else {
+        sessionStorage.removeItem('checkout:idempotencyKey');
         navigate(`/orders/${createdOrder.id}`);
       }
     } catch (err: unknown) {

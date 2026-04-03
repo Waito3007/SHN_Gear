@@ -16,5 +16,6 @@
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\SHNGearBE\SHNGearBE.csproj" />
+        <ProjectReference Include="..\SHNGearMailService\SHNGearMailService.csproj" />
     </ItemGroup>
 </Project>

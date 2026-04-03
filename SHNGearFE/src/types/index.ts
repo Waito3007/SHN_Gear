@@ -177,6 +177,7 @@ export interface CreateOrderRequest {
   paymentProvider: PaymentProvider;
   paymentToken?: string;
   note?: string;
+  idempotencyKey?: string;
 }
 
 export interface PayPalClientConfigResponse {

@@ -8,6 +8,7 @@ public interface IOrderRepository : IGenericRepository<Models.Entities.Order.Ord
 {
     Task<Models.Entities.Order.Order?> GetByIdWithDetailsAsync(Guid orderId, CancellationToken cancellationToken = default);
     Task<Models.Entities.Order.Order?> GetByIdAndAccountAsync(Guid orderId, Guid accountId, CancellationToken cancellationToken = default);
+    Task<Models.Entities.Order.Order?> GetByIdempotencyKeyAsync(Guid accountId, string idempotencyKey, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Models.Entities.Order.Order>> GetByAccountAsync(Guid accountId, int skip, int take, CancellationToken cancellationToken = default);
     Task<int> CountByAccountAsync(Guid accountId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Models.Entities.Order.Order>> GetPagedAsync(OrderStatus? status, int skip, int take, CancellationToken cancellationToken = default);
