@@ -26,6 +26,19 @@ public class OrderRepository : GenericRepository<OrderEntity>, IOrderRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<OrderEntity?> GetByIdempotencyKeyAsync(Guid accountId, string idempotencyKey, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return null;
+        }
+
+        var normalizedKey = idempotencyKey.Trim();
+        return await QueryWithDetails()
+            .Where(o => !o.IsDelete && o.AccountId == accountId && o.IdempotencyKey == normalizedKey)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<OrderEntity>> GetByAccountAsync(Guid accountId, int skip, int take, CancellationToken cancellationToken = default)
     {
         return await QueryWithDetails()

@@ -92,10 +92,19 @@ public class OrderService : IOrderService
         return Task.FromResult(response);
     }
 
-    public async Task ProcessPayPalWebhookAsync(string eventType, string? captureId, CancellationToken cancellationToken = default)
+    public async Task ProcessPayPalWebhookAsync(string eventId, string eventType, string? captureId, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(captureId) || string.IsNullOrWhiteSpace(eventType))
+        if (string.IsNullOrWhiteSpace(eventId) || string.IsNullOrWhiteSpace(eventType))
         {
+            return;
+        }
+
+        var duplicateEvent = await _context.WebhookEvents
+            .AnyAsync(e => !e.IsDelete && e.Provider == "PayPal" && e.EventId == eventId, cancellationToken);
+
+        if (duplicateEvent)
+        {
+            await _logService.WriteMessageAsync($"PayPal webhook ignored as duplicate: {eventId}");
             return;
         }
 
@@ -106,6 +115,26 @@ public class OrderService : IOrderService
         if (order == null)
         {
             await _logService.WriteMessageAsync($"PayPal webhook ignored: no order for capture {captureId}");
+
+            _context.WebhookEvents.Add(new Models.Entities.Order.WebhookEvent
+            {
+                Id = Guid.NewGuid(),
+                Provider = "PayPal",
+                EventId = eventId,
+                EventType = eventType,
+                CaptureId = captureId,
+                ProcessedAt = DateTime.UtcNow,
+                OrderId = null
+            });
+
+            try
+            {
+                await _unitOfWork.SaveAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Ignore duplicate persistence race between webhook retries.
+            }
             return;
         }
 
@@ -130,7 +159,26 @@ public class OrderService : IOrderService
         }
 
         order.UpdateAt = DateTime.UtcNow;
-        await _unitOfWork.SaveAsync();
+
+        _context.WebhookEvents.Add(new Models.Entities.Order.WebhookEvent
+        {
+            Id = Guid.NewGuid(),
+            Provider = "PayPal",
+            EventId = eventId,
+            EventType = eventType,
+            CaptureId = captureId,
+            ProcessedAt = DateTime.UtcNow,
+            OrderId = order.Id
+        });
+
+        try
+        {
+            await _unitOfWork.SaveAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Duplicate persistence from concurrent webhook retries can be safely ignored.
+        }
     }
 
     public async Task<OrderResponse> CreateOrderAsync(Guid accountId, CreateOrderRequest request, CancellationToken cancellationToken = default)
@@ -145,6 +193,18 @@ public class OrderService : IOrderService
         if (cart.Items.Count == 0)
         {
             throw new ProjectException(ResponseType.BadRequest, "Gio hang trong");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            throw new ProjectException(ResponseType.InvalidData, "Idempotency key is required");
+        }
+
+        var normalizedIdempotencyKey = request.IdempotencyKey.Trim();
+        var existingOrder = await _orderRepository.GetByIdempotencyKeyAsync(accountId, normalizedIdempotencyKey, cancellationToken);
+        if (existingOrder != null)
+        {
+            return MapToResponse(existingOrder);
         }
 
         var provider = request.PaymentProvider;
@@ -179,6 +239,7 @@ public class OrderService : IOrderService
                 Code = GenerateOrderCode(),
                 AccountId = accountId,
                 DeliveryAddressId = address.Id,
+                IdempotencyKey = normalizedIdempotencyKey,
                 Status = OrderStatus.Pending,
                 PaymentProvider = provider,
                 PaymentStatus = PaymentStatus.Pending,
@@ -236,6 +297,19 @@ public class OrderService : IOrderService
             await TrySendOrderPlacedEmailAsync(accountId, order, address, cancellationToken);
 
             return MapToResponse(order);
+        }
+        catch (DbUpdateException)
+        {
+            await _unitOfWork.RollbackAsync();
+
+            var duplicateOrder = await _orderRepository.GetByIdempotencyKeyAsync(accountId, normalizedIdempotencyKey, cancellationToken);
+            if (duplicateOrder != null)
+            {
+                await _logService.WriteMessageAsync($"Order create request replayed: {duplicateOrder.Id} - Account: {accountId}");
+                return MapToResponse(duplicateOrder);
+            }
+
+            throw;
         }
         catch
         {
@@ -353,7 +427,7 @@ public class OrderService : IOrderService
             await RestoreStockAsync(order, cancellationToken);
 
             var shouldAutoRefund = ShouldAutoRefundOnCancel(order.Status);
-            refundSummary = await RefundPayPalIfNeededAsync(order, shouldAutoRefund, null, cancellationToken);
+            refundSummary = await RefundPayPalIfNeededAsync(order, shouldAutoRefund, null, reason, cancellationToken);
 
             order.Status = OrderStatus.Cancelled;
             order.CancelledAt = DateTime.UtcNow;
@@ -406,7 +480,7 @@ public class OrderService : IOrderService
             throw new ProjectException(ResponseType.BadRequest, "Don hang chua thanh toan, khong the hoan tien");
         }
 
-        var refundSummary = await RefundPayPalIfNeededAsync(order, true, amountUsd, cancellationToken);
+        var refundSummary = await RefundPayPalIfNeededAsync(order, true, amountUsd, reason, cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(reason))
         {
@@ -478,7 +552,7 @@ public class OrderService : IOrderService
                 await RestoreStockAsync(order, cancellationToken);
 
                 var shouldAutoRefund = ShouldAutoRefundOnCancel(order.Status);
-                refundSummary = await RefundPayPalIfNeededAsync(order, shouldAutoRefund, null, cancellationToken);
+                refundSummary = await RefundPayPalIfNeededAsync(order, shouldAutoRefund, null, order.CancelledReason, cancellationToken);
 
                 order.Status = OrderStatus.Cancelled;
                 order.UpdateAt = DateTime.UtcNow;
@@ -554,7 +628,7 @@ public class OrderService : IOrderService
         }
     }
 
-    private async Task<RefundSummary?> RefundPayPalIfNeededAsync(OrderEntity order, bool shouldRefund, decimal? amountUsd, CancellationToken cancellationToken)
+    private async Task<RefundSummary?> RefundPayPalIfNeededAsync(OrderEntity order, bool shouldRefund, decimal? amountUsd, string? reason, CancellationToken cancellationToken)
     {
         if (!shouldRefund)
         {
@@ -582,23 +656,58 @@ public class OrderService : IOrderService
             throw new ProjectException(ResponseType.BadRequest, captureAmountResult.ErrorMessage ?? "Khong lay duoc tong so tien giao dich PayPal");
         }
 
-        if (amountUsd.HasValue && amountUsd.Value > captureAmountResult.AmountUsd.Value)
+        var alreadyRefundedAmount = await _context.RefundRecords
+            .Where(r => !r.IsDelete && r.OrderId == order.Id)
+            .SumAsync(r => r.RefundAmountUsd, cancellationToken);
+
+        var remainingRefundableAmount = captureAmountResult.AmountUsd.Value - alreadyRefundedAmount;
+        if (remainingRefundableAmount <= 0)
         {
-            throw new ProjectException(ResponseType.BadRequest, "So tien hoan vuot qua tong so tien da thanh toan");
+            throw new ProjectException(ResponseType.BadRequest, "Don hang da duoc hoan tien toi da");
         }
 
-        var refundResult = await _payPalGatewayService.RefundCaptureAsync(order.PaymentTransactionId, amountUsd, cancellationToken);
+        var requestedRefundAmount = amountUsd ?? remainingRefundableAmount;
+        if (requestedRefundAmount <= 0)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "So tien hoan phai lon hon 0");
+        }
+
+        if (requestedRefundAmount > remainingRefundableAmount)
+        {
+            throw new ProjectException(ResponseType.BadRequest, "So tien hoan vuot qua so tien con lai co the hoan");
+        }
+
+        var refundResult = await _payPalGatewayService.RefundCaptureAsync(order.PaymentTransactionId, requestedRefundAmount, cancellationToken);
         if (!refundResult.Success)
         {
             throw new ProjectException(ResponseType.BadRequest, refundResult.ErrorMessage ?? "Hoan tien PayPal that bai");
         }
 
-        var refundedAmount = refundResult.RefundedAmountUsd ?? amountUsd ?? captureAmountResult.AmountUsd.Value;
+        if (string.IsNullOrWhiteSpace(refundResult.RefundId))
+        {
+            throw new ProjectException(ResponseType.BadRequest, "PayPal khong tra ve ma giao dich refund");
+        }
+
+        var refundedAmount = refundResult.RefundedAmountUsd ?? requestedRefundAmount;
         var totalCapturedAmount = captureAmountResult.AmountUsd.Value;
-        if (refundedAmount >= totalCapturedAmount)
+        var totalRefundedAmount = alreadyRefundedAmount + refundedAmount;
+        if (totalRefundedAmount >= totalCapturedAmount)
         {
             order.PaymentStatus = PaymentStatus.Refunded;
         }
+
+        _context.RefundRecords.Add(new Models.Entities.Order.RefundRecord
+        {
+            Id = Guid.NewGuid(),
+            OrderId = order.Id,
+            RefundTransactionId = refundResult.RefundId,
+            CaptureTransactionId = order.PaymentTransactionId,
+            RefundAmountUsd = refundedAmount,
+            TotalCapturedAmountUsd = totalCapturedAmount,
+            CurrencyCode = captureAmountResult.CurrencyCode,
+            RefundReason = string.IsNullOrWhiteSpace(reason) ? order.CancelledReason : reason.Trim(),
+            RefundedAt = DateTime.UtcNow
+        });
 
         order.UpdateAt = DateTime.UtcNow;
         return new RefundSummary(refundedAmount, totalCapturedAmount, captureAmountResult.CurrencyCode);

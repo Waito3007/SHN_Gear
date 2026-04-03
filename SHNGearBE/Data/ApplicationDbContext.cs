@@ -45,6 +45,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderItem> OrderItems { get; set; }
+    public DbSet<RefundRecord> RefundRecords { get; set; }
+    public DbSet<WebhookEvent> WebhookEvents { get; set; }
 
     #endregion Order
 

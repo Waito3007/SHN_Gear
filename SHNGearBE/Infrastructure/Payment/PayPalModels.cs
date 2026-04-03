@@ -41,6 +41,7 @@ public class PayPalConversionResult
 
 public class PayPalWebhookNotification
 {
+    public string EventId { get; set; } = string.Empty;
     public string EventType { get; set; } = string.Empty;
     public string? CaptureId { get; set; }
 }

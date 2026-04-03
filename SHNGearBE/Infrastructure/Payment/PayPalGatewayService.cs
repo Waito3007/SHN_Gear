@@ -293,6 +293,10 @@ public class PayPalGatewayService : IPayPalGatewayService
 
     public Task<PayPalWebhookNotification> ParseWebhookAsync(JsonElement webhookEvent, CancellationToken cancellationToken = default)
     {
+        var eventId = webhookEvent.TryGetProperty("id", out var eventIdEl)
+            ? eventIdEl.GetString()
+            : string.Empty;
+
         var eventType = webhookEvent.TryGetProperty("event_type", out var eventTypeEl)
             ? eventTypeEl.GetString()
             : string.Empty;
@@ -316,6 +320,7 @@ public class PayPalGatewayService : IPayPalGatewayService
 
         return Task.FromResult(new PayPalWebhookNotification
         {
+            EventId = eventId ?? string.Empty,
             EventType = eventType ?? string.Empty,
             CaptureId = captureId
         });

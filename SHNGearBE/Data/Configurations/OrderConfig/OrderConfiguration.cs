@@ -16,6 +16,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasMaxLength(32)
             .IsRequired();
 
+        builder.Property(o => o.IdempotencyKey)
+            .HasMaxLength(128);
+
         builder.Property(o => o.Note)
             .HasMaxLength(500);
 
@@ -56,6 +59,8 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsUnique();
 
         builder.HasIndex(o => o.AccountId);
+        builder.HasIndex(o => new { o.AccountId, o.IdempotencyKey })
+            .IsUnique();
 
         builder.HasOne(o => o.Account)
             .WithMany()
